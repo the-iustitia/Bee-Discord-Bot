@@ -133,6 +133,14 @@ async def mute(ctx, user: Option(discord.Member, description='Select a user')):
     else:
         await ctx.respond("You do not have permission to mute members.")
 
+@bot.slash_command(name='clear', description='Clear messages in a chat')
+async def clear(ctx, amount: int):
+    if ctx.author.guild_permissions.manage_messages:
+        await ctx.channel.purge(limit=amount)
+        await ctx.send(f"{amount} messages have been deleted.", delete_after=5)
+    else:
+        await ctx.send("You do not have permission to delete messages.")
+
 @bot.slash_command(name='trivia', description='Answer a random trivia question')
 async def trivia(ctx):
     questions = [
@@ -272,8 +280,9 @@ class TruthOrDareButtonView(discord.ui.View):
     @discord.ui.button(label="Truth", style=discord.ButtonStyle.green)
     async def truth_button(self, button: discord.ui.Button, interaction: discord.Interaction):
         try:
+            await interaction.response.defer()
             if interaction.user != self.ctx.author:
-                await interaction.response.send_message("This is not your game!", ephemeral=True)
+                await interaction.followup.send("This is not your game!", ephemeral=True)
                 return
             self.result = "truth"
             self.stop()
@@ -283,13 +292,15 @@ class TruthOrDareButtonView(discord.ui.View):
     @discord.ui.button(label="Dare", style=discord.ButtonStyle.red)
     async def dare_button(self, button: discord.ui.Button, interaction: discord.Interaction):
         try:
+            await interaction.response.defer()
             if interaction.user != self.ctx.author:
-                await interaction.response.send_message("This is not your game!", ephemeral=True)
+                await interaction.followup.send("This is not your game!", ephemeral=True)
                 return
             self.result = "dare"
             self.stop()
         except discord.errors.InteractionError:
             pass
+
 
 @bot.slash_command(name='truth_or_dare', description='Play a game of Truth or Dare')
 async def truth_or_dare(ctx):
@@ -380,4 +391,4 @@ async def truth_or_dare(ctx):
     else:
         await ctx.send("You didn't choose in time!")
 
-bot.run("")
+bot.run("MTI0NzEyNDQ5NDYzNjU1MjI5NA.Gm-yhE.XhSyEtyZmrqzu7N-cMWPPwLfz61F0NvEXtfVb0")
