@@ -133,14 +133,6 @@ async def mute(ctx, user: Option(discord.Member, description='Select a user')):
     else:
         await ctx.respond("You do not have permission to mute members.")
 
-@bot.slash_command(name='clear', description='Clear messages in a chat')
-async def clear(ctx, amount: int):
-    if ctx.author.guild_permissions.manage_messages:
-        await ctx.channel.purge(limit=amount)
-        await ctx.send(f"{amount} messages have been deleted.", delete_after=5)
-    else:
-        await ctx.send("You do not have permission to delete messages.")
-
 @bot.slash_command(name='trivia', description='Answer a random trivia question')
 async def trivia(ctx):
     questions = [
