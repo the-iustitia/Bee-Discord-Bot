@@ -109,6 +109,14 @@ async def kick(ctx, user: Option(discord.Member, description='Select a user')):
     else:
         await ctx.respond("You do not have permission to kick members.")
 
+@bot.command()
+async def say(ctx, *, message: str):
+    if ctx.author.guild_permissions.kick_members:    
+        await ctx.message.delete()
+        await ctx.send(message)
+    else:
+        await ctx.respond("You do not have permission use this command.")    
+
 @bot.slash_command(name='ban', description='Ban a user from the server')
 async def ban(ctx, user: Option(discord.Member, description='Select a user')):
     if ctx.author.guild_permissions.ban_members:
@@ -125,7 +133,7 @@ async def mute(ctx, user: Option(discord.Member, description='Select a user')):
     else:
         await ctx.respond("You do not have permission to mute members.")
 
-@bot.command()
+@bot.slash_command(name='clear', description='Clear messages in a chat')
 async def clear(ctx, amount: int):
     if ctx.author.guild_permissions.manage_messages:
         await ctx.channel.purge(limit=amount)
@@ -133,16 +141,51 @@ async def clear(ctx, amount: int):
     else:
         await ctx.send("You do not have permission to delete messages.")
 
-import random
-
 @bot.slash_command(name='trivia', description='Answer a random trivia question')
 async def trivia(ctx):
     questions = [
-        ("What is the capital of France?", "Paris"),
-        ("Who wrote 'Hamlet'?", "Shakespeare"),
-        ("What is the largest planet in our solar system?", "Jupiter"),
-        ("What year did the Titanic sink?", "1912"),
-        ("Who painted the Mona Lisa?", "Leonardo da Vinci")
+        ("In what year did World War I begin?", "1914"),
+        ("Who was the first President of the United States?", "George Washington"),
+        ("In what year was the Berlin Wall torn down?", "1989"),
+        ("Who was the pharaoh during the construction of the Great Pyramid of Giza?", "Khufu"),
+        ("Who was the leader of the Soviet Union during World War II?", "Joseph Stalin"),
+
+        ("What element is the main component of the Sun?", "Hydrogen"),
+        ("Who developed the theory of relativity?", "Albert Einstein"),
+        ("What gas makes up about 78% of the Earth's atmosphere?", "Nitrogen"),
+        ("Who discovered penicillin?", "Alexander Fleming"),
+        ("What is the hardest natural substance on Earth?", "Diamond"),
+
+        ("What is the longest river in the world?", "Nile"),
+        ("In which country is Mount Kilimanjaro located?", "Tanzania"),
+        ("What city is the capital of Australia?", "Canberra"),
+        ("What is the deepest lake in the world?", "Baikal"),
+        ("In which country is Machu Picchu located?", "Peru"),
+
+        ("Who wrote the novel 'War and Peace'?", "Leo Tolstoy"),
+        ("Which novel begins with the line 'All happy families are alike...'?", "Anna Karenina"),
+        ("Who is the author of 'Moby-Dick'?", "Herman Melville"),
+        ("Who wrote the 'Odyssey'?", "Homer"),
+        ("Which novel was written by George Orwell in 1949?", "1984"),
+
+        ("Who composed Symphony No. 9 'Ode to Joy'?", "Ludwig van Beethoven"),
+        ("Who painted 'Starry Night'?", "Vincent van Gogh"),
+        ("Which work of Michelangelo is in the Sistine Chapel?", "The Creation of Adam"),
+        ("Which famous Spanish painter created 'Guernica'?", "Pablo Picasso"),
+        ("Which ballet by Pyotr Tchaikovsky is based on a story by E.T.A. Hoffmann?", "The Nutcracker"),
+
+        ("What sport is considered the national sport of Japan?", "Sumo"),
+        ("In what year were the first modern Olympic Games held?", "1896"),
+        ("What is the name of the trophy awarded to the winner of the FIFA World Cup?", "FIFA World Cup Trophy"),
+        ("What animal is the mascot for the 2024 Paris Olympics?", "Phrygian cap"),
+        ("Who won the first Wimbledon tournament in 1877?", "Spencer Gore"),
+
+        ("What is the fastest land animal?", "Cheetah"),
+        ("Which fruit is known as the 'King of Fruits'?", "Durian"),
+        ("What holiday is celebrated on December 25th?", "Christmas"),
+        ("Which planet is the smallest in our solar system?", "Mercury"),
+        ("What is the most popular pet in the world?", "Cat")
+
     ]
     
     question, answer = random.choice(questions)
@@ -228,4 +271,121 @@ async def rock_paper_scissors(ctx):
     view = RPSButtonView(ctx, None, None)
     await ctx.respond("Choose Rock, Paper, or Scissors:", view=view)
     
+class TruthOrDareButtonView(discord.ui.View):
+    def __init__(self, ctx):
+        super().__init__(timeout=15)
+        self.ctx = ctx
+        self.result = None
+
+    @discord.ui.button(label="Truth", style=discord.ButtonStyle.green)
+    async def truth_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+        try:
+            if interaction.user != self.ctx.author:
+                await interaction.response.send_message("This is not your game!", ephemeral=True)
+                return
+            self.result = "truth"
+            self.stop()
+        except discord.errors.InteractionError:
+            pass
+
+    @discord.ui.button(label="Dare", style=discord.ButtonStyle.red)
+    async def dare_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+        try:
+            if interaction.user != self.ctx.author:
+                await interaction.response.send_message("This is not your game!", ephemeral=True)
+                return
+            self.result = "dare"
+            self.stop()
+        except discord.errors.InteractionError:
+            pass
+
+@bot.slash_command(name='truth_or_dare', description='Play a game of Truth or Dare')
+async def truth_or_dare(ctx):
+    truths = [
+        "What is your biggest fear?",
+        "What is the most embarrassing thing you've ever done?",
+        "Have you ever lied to get out of trouble?",
+        "What is your biggest regret?",
+        "What is your secret talent?",
+        "Have you ever had a crush on someone in this room?",
+        "What is the worst gift you have ever received?",
+        "What is the most childish thing you still do?",
+        "Have you ever cheated on a test?",
+        "What is the strangest dream you've ever had?",
+        "If you could change one thing about your past, what would it be?",
+        "Who is your secret crush?",
+        "What is the most annoying habit you have?",
+        "What is the worst lie you’ve ever told?",
+        "What is something you have never told anyone?",
+        "Who was your first kiss?",
+        "What is the most embarrassing thing your parents have caught you doing?",
+        "What is the biggest misconception about you?",
+        "What is the most awkward date you have been on?",
+        "Have you ever been in love?",
+        "What is the weirdest thing you have ever done in public?",
+        "What is your guilty pleasure?",
+        "Have you ever stolen something?",
+        "What is the most trouble you have been in?",
+        "What is the weirdest food you have ever eaten?",
+        "What is your biggest pet peeve?",
+        "What is your biggest insecurity?",
+        "What is the meanest thing you have ever said to someone?",
+        "What is the most ridiculous thing you have done because you were bored?",
+        "What is the best prank you have ever pulled?",
+        "What is your most bizarre talent?",
+        "Have you ever broken a bone?",
+        "What is the most embarrassing song you secretly love?",
+        "If you could swap lives with someone for a day, who would it be?"
+    ]
+
+    dares = [
+        "Dance for 1 minute without music.",
+        "Let someone write a word on your forehead with a marker.",
+        "Sing the chorus of your favorite song.",
+        "Do 20 pushups.",
+        "Speak in an accent for the next 3 rounds.",
+        "Try to lick your elbow.",
+        "Post an embarrassing photo on social media.",
+        "Imitate a celebrity until someone can guess who you are.",
+        "Do your best chicken dance outside on the lawn.",
+        "Let someone tickle you for 30 seconds.",
+        "Talk in a funny voice for the next 5 minutes.",
+        "Act like a monkey until your next turn.",
+        "Do an impression of your favorite celebrity.",
+        "Wear socks on your hands for the next 10 minutes.",
+        "Dance with no music for 2 minutes.",
+        "Do your best impression of a baby being born.",
+        "Do your best impression of someone from the group.",
+        "Do 20 jumping jacks.",
+        "Let the person to your left draw on your face with a pen.",
+        "Speak in a different accent until your next turn.",
+        "Pretend to be a waiter/waitress and take snack orders from everyone in the group.",
+        "Attempt to do a magic trick.",
+        "Do your best breakdance move.",
+        "Pretend to be a chicken for 1 minute.",
+        "Let someone in the group give you a new hairstyle.",
+        "Imitate a cartoon character.",
+        "Do an impression of a celebrity of the group’s choosing.",
+        "Try to juggle 3 items (none of which can be balls).",
+        "Act like your favorite animal until your next turn.",
+        "Pretend you are a ballerina until your next turn.",
+        "Make a funny face and keep it that way until the next round.",
+        "Try to touch your nose with your tongue.",
+        "Let the group choose an item for you to brush your teeth with."
+    ]
+
+    view = TruthOrDareButtonView(ctx)
+    await ctx.respond("Truth or Dare? Click a button to choose.", view=view)
+
+    await view.wait()
+
+    if view.result == "truth":
+        truth = random.choice(truths)
+        await ctx.send(f"Truth: {truth}")
+    elif view.result == "dare":
+        dare = random.choice(dares)
+        await ctx.send(f"Dare: {dare}")
+    else:
+        await ctx.send("You didn't choose in time!")
+
 bot.run("")
