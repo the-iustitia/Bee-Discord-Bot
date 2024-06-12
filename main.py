@@ -391,4 +391,4 @@ async def truth_or_dare(ctx):
     else:
         await ctx.send("You didn't choose in time!")
 
-bot.run("")
+bot.run("MTI0NzEyNDQ5NDYzNjU1MjI5NA.Gm-yhE.XhSyEtyZmrqzu7N-cMWPPwLfz61F0NvEXtfVb0")
