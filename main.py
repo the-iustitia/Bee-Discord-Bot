@@ -1,3 +1,4 @@
+from typing import List
 import discord
 from discord.ext import commands
 from discord import Option
@@ -5,8 +6,18 @@ import requests
 from discord.ui import Button, View
 import random
 import asyncio
+from datetime import datetime
+import pytz
 
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.errors.CommandInvokeError):
+        if "429 Too Many Requests" in str(error):
+            await asyncio.sleep(10)  # Задержка перед повторной попыткой
+        else:
+            raise error
 
 @bot.event
 async def on_ready():
@@ -109,6 +120,21 @@ async def kick(ctx, user: Option(discord.Member, description='Select a user')):
     else:
         await ctx.respond("You do not have permission to kick members.")
 
+@bot.slash_command(name='warn', description='Warn a user for violating server rules')
+async def warn(ctx, user: Option(discord.Member, description='Select a user')):
+    embed = discord.Embed(
+        title="Warning",
+        description=f"You have been warned for violating server rules in {ctx.guild.name}. Please adhere to the rules.",
+        color=discord.Color.gold()
+    )
+
+    try:
+        await user.send(embed=embed)
+        await ctx.respond(f"{user.mention} has been warned.")
+    except discord.Forbidden:
+        await ctx.respond(f"{user.mention} has been warned, but their DMs are closed.")
+        await ctx.send(f"{user.mention}, you have been warned for violating server rules in {ctx.guild.name}. Please adhere to the rules.", embed=embed)
+
 @bot.command()
 async def say(ctx, *, message: str):
     if ctx.author.guild_permissions.kick_members:    
@@ -120,26 +146,89 @@ async def say(ctx, *, message: str):
 @bot.slash_command(name='ban', description='Ban a user from the server')
 async def ban(ctx, user: Option(discord.Member, description='Select a user')):
     if ctx.author.guild_permissions.ban_members:
-        await user.ban()
-        await ctx.respond(f"{user.mention} has been banned from the server.")
+        if user == ctx.author:
+            await ctx.respond("You cannot ban yourself.")
+        elif user.top_role >= ctx.author.top_role:
+            await ctx.respond("You cannot ban this user due to role hierarchy.")
+        else:
+            await user.ban()
+            await ctx.respond(f"{user.mention} has been banned from the server.")
     else:
         await ctx.respond("You do not have permission to ban members.")
 
 @bot.slash_command(name='mute', description='Mute a user in the server')
 async def mute(ctx, user: Option(discord.Member, description='Select a user')):
     if ctx.author.guild_permissions.manage_roles:
-        # Add your mute logic here, such as assigning a muted role to the user
-        await ctx.respond(f"{user.mention} has been muted.")
+        muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
+        if not muted_role:
+            try:
+                muted_role = await ctx.guild.create_role(name="Muted", reason="For muting users", permissions=discord.Permissions(send_messages=False, speak=False))
+                
+                for channel in ctx.guild.channels:
+                    await channel.set_permissions(muted_role, send_messages=False, speak=False)
+
+            except discord.Forbidden:
+                await ctx.respond("I do not have permissions to create roles. Please ask an administrator to create a role named 'Muted'.")
+                return
+            except discord.HTTPException:
+                await ctx.respond("Failed to create the 'Muted' role. Please check server settings or try again later.")
+                return
+        
+        if muted_role in user.roles:
+            await ctx.respond(f"{user.mention} is already muted.")
+        else:
+            await user.add_roles(muted_role)
+            await ctx.respond(f"{user.mention} has been muted.")
     else:
         await ctx.respond("You do not have permission to mute members.")
 
-@bot.slash_command(name='clear', description='Clear messages in a chat')
-async def clear(ctx, amount: int):
-    if ctx.author.guild_permissions.manage_messages:
-        await ctx.channel.purge(limit=amount)
-        await ctx.send(f"{amount} messages have been deleted.", delete_after=5)
+@bot.slash_command(name='unmute', description='Unmute a user in the server')
+async def unmute(ctx, user: Option(discord.Member, description='Select a user')):
+    if ctx.author.guild_permissions.manage_roles:
+        
+        muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
+        if not muted_role:
+            await ctx.respond("The 'Muted' role does not exist. Please create it first.")
+            return
+        
+        if muted_role not in user.roles:
+            await ctx.respond(f"{user.mention} is not muted.")
+        else:
+            await user.remove_roles(muted_role)
+            await ctx.respond(f"{user.mention} has been unmuted.")
     else:
-        await ctx.send("You do not have permission to delete messages.")
+        await ctx.respond("You do not have permission to unmute members.")
+
+@bot.slash_command(name='unban', description='Unban a user from the server')
+async def unban(ctx, user: Option(str, description='User ID to unban')):
+    if ctx.author.guild_permissions.ban_members:
+        try:
+            user_obj = await bot.fetch_user(user)
+            await ctx.guild.unban(user_obj)
+            await ctx.respond(f"{user_obj.mention} has been unbanned from the server.")
+        except discord.NotFound:
+            await ctx.respond("User not found. Please provide a valid User ID.")
+    else:
+        await ctx.respond("You do not have permission to unban members.")
+
+@bot.slash_command(name='clear', description='Clear messages in a chat')
+async def clear(ctx, amount_or_all: str):
+    if amount_or_all.lower() == 'all':
+        if ctx.author.guild_permissions.manage_messages:
+            await ctx.channel.purge()
+            await ctx.send("All messages have been deleted.", delete_after=5)
+        else:
+            await ctx.send("You do not have permission to delete messages.")
+    else:
+        try:
+            amount = int(amount_or_all)
+            if ctx.author.guild_permissions.manage_messages:
+                await ctx.channel.purge(limit=amount)
+                await ctx.send(f"{amount} messages have been deleted.", delete_after=5)
+            else:
+                await ctx.send("You do not have permission to delete messages.")
+        except ValueError:
+            await ctx.send("Invalid command usage. Please provide a number or 'all'.")
 
 @bot.slash_command(name='trivia', description='Answer a random trivia question')
 async def trivia(ctx):
@@ -391,4 +480,280 @@ async def truth_or_dare(ctx):
     else:
         await ctx.send("You didn't choose in time!")
 
-bot.run("MTI0NzEyNDQ5NDYzNjU1MjI5NA.Gm-yhE.XhSyEtyZmrqzu7N-cMWPPwLfz61F0NvEXtfVb0")
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user}')
+
+class CasinoView(View):
+    def __init__(self):
+        super().__init__()
+        self.add_item(BetButton())
+        self.add_item(SpinButton())
+
+class BetButton(Button):
+    def __init__(self):
+        super().__init__(label="Place Bet", style=discord.ButtonStyle.primary)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.send_message("You placed a bet! Now, spin the slot.", ephemeral=True)
+
+class SpinButton(Button):
+    def __init__(self):
+        super().__init__(label="Spin", style=discord.ButtonStyle.success)
+
+    async def callback(self, interaction: discord.Interaction):
+        slots = ["🍒", "🍋", "🍊", "🍇", "🍉", "🍓"]
+        result = [random.choice(slots) for _ in range(3)]
+        if len(set(result)) == 1:
+            await interaction.response.send_message(f"{' '.join(result)} - You won!", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"{' '.join(result)} - You lost!", ephemeral=True)
+
+@bot.slash_command(name='casino', description='Start a casino game')
+async def casino(ctx):
+    view = CasinoView()
+    await ctx.respond("Welcome to the Casino! Place your bet and spin the slot machine.", view=view)
+
+class TicTacToeButton(discord.ui.Button):
+    def __init__(self, x: int, y: int):
+        super().__init__(style=discord.ButtonStyle.secondary, label='\u200b', row=y)
+        self.x = x
+        self.y = y
+
+    async def callback(self, interaction: discord.Interaction):
+        view: TicTacToeView = self.view
+        state = view.board[self.y][self.x]
+        if state in (view.X, view.O):
+            return
+
+        if view.current_player == view.X:
+            self.style = discord.ButtonStyle.danger
+            self.label = 'X'
+            self.disabled = True
+            view.board[self.y][self.x] = view.X
+            view.current_player = view.O
+            content = "It is now O's turn"
+        else:
+            self.style = discord.ButtonStyle.success
+            self.label = 'O'
+            self.disabled = True
+            view.board[self.y][self.x] = view.O
+            view.current_player = view.X
+            content = "It is now X's turn"
+
+        winner = view.check_winner()
+        if winner is not None:
+            if winner == view.X:
+                content = 'X won!'
+            elif winner == view.O:
+                content = 'O won!'
+            else:
+                content = "It's a tie!"
+
+            for child in view.children:
+                child.disabled = True
+
+            view.stop()
+
+        await interaction.response.edit_message(content=content, view=view)
+
+
+class TicTacToeView(discord.ui.View):
+    children: List[TicTacToeButton]
+    X = -1
+    O = 1
+    Tie = 2
+
+    def __init__(self):
+        super().__init__()
+        self.current_player = self.X
+        self.board = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+        for x in range(3):
+            for y in range(3):
+                self.add_item(TicTacToeButton(x, y))
+
+    def check_winner(self):
+        for across in self.board:
+            value = sum(across)
+            if value == 3:
+                return self.O
+            elif value == -3:
+                return self.X
+
+        for line in range(3):
+            value = self.board[0][line] + self.board[1][line] + self.board[2][line]
+            if value == 3:
+                return self.O
+            elif value == -3:
+                return self.X
+
+        diag = self.board[0][0] + self.board[1][1] + self.board[2][2]
+        if diag == 3:
+            return self.O
+        elif diag == -3:
+            return self.X
+
+        rdiag = self.board[0][2] + self.board[1][1] + self.board[2][0]
+        if rdiag == 3:
+            return self.O
+        elif rdiag == -3:
+            return self.X
+
+        if all(i != 0 for row in self.board for i in row):
+            return self.Tie
+
+        return None
+
+
+@bot.slash_command(name='tic_tac_toe', description='Play a game of Tic-Tac-Toe')
+async def tic_tac_toe(ctx):
+    await ctx.respond("Tic Tac Toe: X goes first", view=TicTacToeView())
+
+@bot.slash_command(name='would_you_rather', description='Play a game of Would You Rather')
+async def would_you_rather(ctx):
+    questions = [
+        ("Would you rather be able to fly or be invisible?", "fly", "invisible"),
+        ("Would you rather have more time or more money?", "time", "money"),
+        ("Would you rather always be too hot or always be too cold?", "hot", "cold"),
+        ("Would you rather be able to talk to animals or speak all foreign languages?", "animals", "languages"),
+        ("Would you rather never be able to eat meat or never be able to eat vegetables?", "meat", "vegetables"),
+        ("Would you rather lose your vision or your hearing?", "vision", "hearing"),
+        ("Would you rather be famous or rich?", "famous", "rich")
+    ]
+    
+    question, option1, option2 = random.choice(questions)
+
+    embed = discord.Embed(title="Would You Rather", description=question, color=discord.Color.blue())
+    embed.add_field(name="Option 1", value=option1)
+    embed.add_field(name="Option 2", value=option2)
+
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label=option1, style=discord.ButtonStyle.primary, custom_id='option1'))
+    view.add_item(discord.ui.Button(label=option2, style=discord.ButtonStyle.secondary, custom_id='option2'))
+
+    async def button_callback(interaction: discord.Interaction):
+        if interaction.custom_id == 'option1':
+            await interaction.response.send_message(f"You chose: {option1}", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"You chose: {option2}", ephemeral=True)
+
+    for item in view.children:
+        item.callback = button_callback
+
+    await ctx.respond(embed=embed, view=view)
+
+class MemoryButton(discord.ui.Button):
+    def __init__(self, label, row, column):
+        super().__init__(style=discord.ButtonStyle.secondary, label='?', row=row)
+        self.row = row
+        self.column = column
+        self.content = label
+        self.revealed = False
+
+    async def callback(self, interaction: discord.Interaction):
+        view: MemoryGameView = self.view
+        if self.revealed or view.locked:
+            return
+
+        self.revealed = True
+        self.label = self.content
+        self.style = discord.ButtonStyle.primary
+        await interaction.response.edit_message(view=view)
+
+        if view.first_selection is None:
+            view.first_selection = self
+        else:
+            view.locked = True
+            await asyncio.sleep(1)
+
+            if self.content == view.first_selection.content:
+                self.style = discord.ButtonStyle.success
+                view.first_selection.style = discord.ButtonStyle.success
+                view.matches += 1
+                if view.matches == len(view.board) // 2:
+                    await interaction.followup.send("You have matched all pairs! 🎉")
+                    view.stop()
+            else:
+                self.label = '?'
+                self.style = discord.ButtonStyle.secondary
+                view.first_selection.label = '?'
+                view.first_selection.style = discord.ButtonStyle.secondary
+
+            self.revealed = False
+            view.first_selection.revealed = False
+            view.first_selection = None
+            view.locked = False
+
+            await interaction.edit_original_response(view=view)
+
+class MemoryGameView(discord.ui.View):
+    def __init__(self):
+        super().__init__()
+        self.board = ['🍎', '🍎', '🍌', '🍌', '🍒', '🍒', '🍇', '🍇', '🍉', '🍉', '🥭', '🥭', '🍓', '🍓', '🍍', '🍍', '🍊', '🍊', '🍋', '🍋']
+        random.shuffle(self.board)
+        self.first_selection = None
+        self.matches = 0
+        self.locked = False
+
+        for i, label in enumerate(self.board):
+            self.add_item(MemoryButton(label, i // 4, i % 5))
+
+@bot.slash_command(name='memory_game', description='Play a memory game')
+async def memory_game(ctx):
+    await ctx.respond("Memory Game: Find all pairs!", view=MemoryGameView())
+
+@bot.slash_command(name="giveaway", description="Starts a giveaway")
+async def _giveaway(ctx, winners: int, prize: str):
+    # Проверка на наличие прав администратора у пользователя
+    if ctx.author.guild_permissions.administrator:
+        guild = bot.get_guild(ctx.guild_id)
+        
+        # Получение всех участников сервера (исключая ботов)
+        participants = [member for member in guild.members if not member.bot]
+
+        # Проверка наличия участников
+        if len(participants) == 0:
+            await ctx.send("Not enough participants for the giveaway.")
+            return
+
+        # Выбор случайных победителей
+        winners_list = random.sample(participants, min(winners, len(participants)))
+
+        # Подготовка текста с победителями
+        winners_text = "\n".join([winner.mention for winner in winners_list])
+        win_message = f"Congratulations to the winners!\n{winners_text}"
+
+        # Формирование Embed-сообщения с результатами розыгрыша
+        embed = discord.Embed(title="🎉 Giveaway Results 🎉",
+                              description=f"**Prize:** {prize}\n**Number of winners:** {winners}",
+                              color=discord.Color.green())
+        embed.add_field(name="Winners:", value=win_message)
+
+        # Отправка Embed-сообщения с результатами розыгрыша
+        await ctx.send(embed=embed)
+
+    else:
+        await ctx.send("You do not have permission to start a giveaway.")  # Сообщение об отсутствии прав администратора
+
+timezones = {
+    'UTC': 'UTC',
+    'GMT': 'Etc/GMT',
+    'CET': 'CET',
+    'EET': 'EET',
+    'IST': 'Asia/Kolkata',
+    'CST': 'America/Chicago',
+    'JST': 'Asia/Tokyo',
+    'AEST': 'Australia/Sydney'
+}
+
+@bot.slash_command(name="time", description="Send time in different time zones")
+async def time(ctx):
+    time_message = "Current times in various timezones:\n"
+    for zone, tz in timezones.items():
+        timezone = pytz.timezone(tz)
+        current_time = datetime.now(timezone).strftime('%Y-%m-%d %H:%M:%S')
+        time_message += f"{zone}: {current_time}\n"
+    
+    await ctx.send(time_message)
+                
+bot.run("")
