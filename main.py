@@ -8,6 +8,7 @@ import random
 import asyncio
 from datetime import datetime
 import pytz
+import aiohttp
 
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
 
@@ -81,7 +82,7 @@ async def avatar(ctx, user: Option(discord.Member, description='Select a user', 
     
     await ctx.respond(embed=embed)
     
-@bot.command()
+@bot.slash_command(name="rules", description="Send the list of rules")
 async def rules(ctx):
     embed = discord.Embed(
         title="Rules of the Server",
@@ -609,7 +610,7 @@ class TicTacToeView(discord.ui.View):
 async def tic_tac_toe(ctx):
     await ctx.respond("Tic Tac Toe: X goes first", view=TicTacToeView())
 
-@bot.slash_command(name='would_you_rather', description='Play a game of Would You Rather')
+@bot.slash_command(name='wyr', description='Play a game of Would You Rather')
 async def would_you_rather(ctx):
     questions = [
         ("Would you rather be able to fly or be invisible?", "fly", "invisible"),
@@ -755,5 +756,70 @@ async def time(ctx):
         time_message += f"{zone}: {current_time}\n"
     
     await ctx.send(time_message)
-                
+
+@bot.command(name='coin', help='Flips a coin and shows the result (heads or tails)')
+async def flip_coin(ctx):
+
+    result = random.choice(['heads', 'tails'])
+    
+    await ctx.send(f'The coin landed on: {result}')
+
+flags = {
+    "Germany": "https://upload.wikimedia.org/wikipedia/en/thumb/b/ba/Flag_of_Germany.svg/1200px-Flag_of_Germany.svg.png",
+    "France": "https://upload.wikimedia.org/wikipedia/en/thumb/c/c3/Flag_of_France.svg/1200px-Flag_of_France.svg.png",
+    "United States": "https://upload.wikimedia.org/wikipedia/en/thumb/a/a4/Flag_of_the_United_States.svg/1200px-Flag_of_the_United_States.svg.png",
+    "United Kingdom": "https://upload.wikimedia.org/wikipedia/en/thumb/a/ae/Flag_of_the_United_Kingdom.svg/1200px-Flag_of_the_United_Kingdom.svg.png",
+    "Canada": "https://upload.wikimedia.org/wikipedia/en/thumb/c/cf/Flag_of_Canada.svg/1200px-Flag_of_Canada.svg.png",
+    "Italy": "https://upload.wikimedia.org/wikipedia/en/thumb/0/03/Flag_of_Italy.svg/1200px-Flag_of_Italy.svg.png",
+    "Spain": "https://upload.wikimedia.org/wikipedia/en/thumb/9/9a/Flag_of_Spain.svg/1200px-Flag_of_Spain.svg.png",
+    "Russia": "https://upload.wikimedia.org/wikipedia/en/thumb/f/f3/Flag_of_Russia.svg/1200px-Flag_of_Russia.svg.png",
+    "China": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Flag_of_the_People%27s_Republic_of_China.svg/1200px-Flag_of_the_People%27s_Republic_of_China.svg.png",
+    "Japan": "https://upload.wikimedia.org/wikipedia/en/thumb/9/9e/Flag_of_Japan.svg/1200px-Flag_of_Japan.svg.png",
+    "Australia": "https://upload.wikimedia.org/wikipedia/en/thumb/b/b9/Flag_of_Australia.svg/1200px-Flag_of_Australia.svg.png",
+    "Brazil": "https://upload.wikimedia.org/wikipedia/en/thumb/0/05/Flag_of_Brazil.svg/1200px-Flag_of_Brazil.svg.png",
+    "Argentina": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Flag_of_Argentina.svg/1200px-Flag_of_Argentina.svg.png",
+    "South Africa": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Flag_of_South_Africa.svg/1200px-Flag_of_South_Africa.svg.png",
+    "India": "https://upload.wikimedia.org/wikipedia/en/thumb/4/41/Flag_of_India.svg/1200px-Flag_of_India.svg.png",
+    "South Korea": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Flag_of_South_Korea.svg/1200px-Flag_of_South_Korea.svg.png",
+    "Mexico": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Flag_of_Mexico.svg/1200px-Flag_of_Mexico.svg.png",
+    "Turkey": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Flag_of_Turkey.svg/1200px-Flag_of_Turkey.svg.png",
+    "Netherlands": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Flag_of_the_Netherlands.svg/1200px-Flag_of_the_Netherlands.svg.png",
+    "Sweden": "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Flag_of_Sweden.svg/1200px-Flag_of_Sweden.svg.png",
+}
+
+@bot.slash_command(name='flaggame', help='Play a game to guess the country by its flag')
+async def flag_game(ctx):
+    country = random.choice(list(flags.keys()))
+    flag_url = flags[country]
+
+    await ctx.send(f"Guess the country by its flag!\n{flag_url}")
+
+    def check_answer(message):
+        return message.author == ctx.author and message.channel == ctx.channel
+
+    try:
+        msg = await bot.wait_for('message', check=check_answer, timeout=30)
+        answer = msg.content.strip().capitalize()
+
+        if answer == country:
+            await ctx.send(f"Correct! {country} is the correct answer!")
+        else:
+            await ctx.send(f"Sorry, the correct answer was {country}. Better luck next time!")
+    except asyncio.TimeoutError:
+        await ctx.send(f"Time's up! The correct answer was {country}.")
+
+@bot.slash_command(name="joke", description="Выводит случайную шутку")
+async def joke(ctx):
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,racist,sexist,explicit") as response:
+            if response.status == 200:
+                data = await response.json()
+                if data["type"] == "single":
+                    joke = data["joke"]
+                else:
+                    joke = f'{data["setup"]} - {data["delivery"]}'
+                await ctx.respond(joke)
+            else:
+                await ctx.respond("Не удалось получить шутку, попробуйте позже.")
+
 bot.run("")
