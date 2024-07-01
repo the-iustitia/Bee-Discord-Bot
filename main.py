@@ -11,12 +11,18 @@ import pytz
 import aiohttp
 
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
+developer_id = "1121059810717225030"
+
+def is_admin_or_developer():
+    async def predicate(ctx):
+        return ctx.author.guild_permissions.administrator or ctx.author.id == developer_id
+    return commands.check(predicate)
 
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.errors.CommandInvokeError):
         if "429 Too Many Requests" in str(error):
-            await asyncio.sleep(10)  # Задержка перед повторной попыткой
+            await asyncio.sleep(10)
         else:
             raise error
 
@@ -137,12 +143,10 @@ async def warn(ctx, user: Option(discord.Member, description='Select a user')):
         await ctx.send(f"{user.mention}, you have been warned for violating server rules in {ctx.guild.name}. Please adhere to the rules.", embed=embed)
 
 @bot.command()
+@is_admin_or_developer()
 async def say(ctx, *, message: str):
-    if ctx.author.guild_permissions.kick_members:    
-        await ctx.message.delete()
-        await ctx.send(message)
-    else:
-        await ctx.respond("You do not have permission use this command.")    
+    await ctx.message.delete()
+    await ctx.send(message)  
 
 @bot.slash_command(name='ban', description='Ban a user from the server')
 async def ban(ctx, user: Option(discord.Member, description='Select a user')):
@@ -213,23 +217,23 @@ async def unban(ctx, user: Option(str, description='User ID to unban')):
         await ctx.respond("You do not have permission to unban members.")
 
 @bot.slash_command(name='clear', description='Clear messages in a chat')
-async def clear(ctx, amount_or_all: str):
+async def clear(ctx: discord.ApplicationContext, amount_or_all: str):
     if amount_or_all.lower() == 'all':
         if ctx.author.guild_permissions.manage_messages:
             await ctx.channel.purge()
-            await ctx.send("All messages have been deleted.", delete_after=5)
+            await ctx.respond("All messages have been deleted.", delete_after=5)
         else:
-            await ctx.send("You do not have permission to delete messages.")
+            await ctx.respond("You do not have permission to delete messages.")
     else:
         try:
             amount = int(amount_or_all)
             if ctx.author.guild_permissions.manage_messages:
                 await ctx.channel.purge(limit=amount)
-                await ctx.send(f"{amount} messages have been deleted.", delete_after=5)
+                await ctx.respond(f"{amount} messages have been deleted.", delete_after=5)
             else:
-                await ctx.send("You do not have permission to delete messages.")
+                await ctx.respond("You do not have permission to delete messages.")
         except ValueError:
-            await ctx.send("Invalid command usage. Please provide a number or 'all'.")
+            await ctx.respond("Invalid command usage. Please provide a number or 'all'.")
 
 @bot.slash_command(name='trivia', description='Answer a random trivia question')
 async def trivia(ctx):
@@ -384,7 +388,7 @@ class TruthOrDareButtonView(discord.ui.View):
         try:
             await interaction.response.defer()
             if interaction.user != self.ctx.author:
-                await interaction.followup.send("This is not your game!", ephemeral=True)
+                await interaction.followup.send("This is not your game!", ephemeral=False)
                 return
             self.result = "dare"
             self.stop()
@@ -481,10 +485,6 @@ async def truth_or_dare(ctx):
     else:
         await ctx.send("You didn't choose in time!")
 
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user}')
-
 class CasinoView(View):
     def __init__(self):
         super().__init__()
@@ -496,7 +496,7 @@ class BetButton(Button):
         super().__init__(label="Place Bet", style=discord.ButtonStyle.primary)
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_message("You placed a bet! Now, spin the slot.", ephemeral=True)
+        await interaction.response.send_message("You placed a bet! Now, spin the slot.", ephemeral=False)
 
 class SpinButton(Button):
     def __init__(self):
@@ -506,9 +506,9 @@ class SpinButton(Button):
         slots = ["🍒", "🍋", "🍊", "🍇", "🍉", "🍓"]
         result = [random.choice(slots) for _ in range(3)]
         if len(set(result)) == 1:
-            await interaction.response.send_message(f"{' '.join(result)} - You won!", ephemeral=True)
+            await interaction.response.send_message(f"{' '.join(result)} - You won!", ephemeral=False)
         else:
-            await interaction.response.send_message(f"{' '.join(result)} - You lost!", ephemeral=True)
+            await interaction.response.send_message(f"{' '.join(result)} - You lost!", ephemeral=False)
 
 @bot.slash_command(name='casino', description='Start a casino game')
 async def casino(ctx):
@@ -557,7 +557,9 @@ class TicTacToeButton(discord.ui.Button):
             view.stop()
 
         await interaction.response.edit_message(content=content, view=view)
-
+        
+        if view.current_player == view.O and view.opponent == "bot":
+            await view.bot_move(interaction)
 
 class TicTacToeView(discord.ui.View):
     children: List[TicTacToeButton]
@@ -565,10 +567,11 @@ class TicTacToeView(discord.ui.View):
     O = 1
     Tie = 2
 
-    def __init__(self):
+    def __init__(self, opponent):
         super().__init__()
         self.current_player = self.X
         self.board = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+        self.opponent = opponent
         for x in range(3):
             for y in range(3):
                 self.add_item(TicTacToeButton(x, y))
@@ -605,10 +608,128 @@ class TicTacToeView(discord.ui.View):
 
         return None
 
+    def is_moves_left(self):
+        for row in self.board:
+            if 0 in row:
+                return True
+        return False
+
+    def evaluate(self):
+        for row in range(3):
+            if self.board[row][0] == self.board[row][1] == self.board[row][2]:
+                if self.board[row][0] == self.O:
+                    return 10
+                elif self.board[row][0] == self.X:
+                    return -10
+
+        for col in range(3):
+            if self.board[0][col] == self.board[1][col] == self.board[2][col]:
+                if self.board[0][col] == self.O:
+                    return 10
+                elif self.board[0][col] == self.X:
+                    return -10
+
+        if self.board[0][0] == self.board[1][1] == self.board[2][2]:
+            if self.board[0][0] == self.O:
+                return 10
+            elif self.board[0][0] == self.X:
+                return -10
+
+        if self.board[0][2] == self.board[1][1] == self.board[2][0]:
+            if self.board[0][2] == self.O:
+                return 10
+            elif self.board[0][2] == self.X:
+                return -10
+
+        return 0
+
+    def minimax(self, depth, is_max):
+        score = self.evaluate()
+
+        if score == 10:
+            return score - depth
+
+        if score == -10:
+            return score + depth
+
+        if not self.is_moves_left():
+            return 0
+
+        if is_max:
+            best = -1000
+
+            for i in range(3):
+                for j in range(3):
+                    if self.board[i][j] == 0:
+                        self.board[i][j] = self.O
+                        best = max(best, self.minimax(depth + 1, not is_max))
+                        self.board[i][j] = 0
+            return best
+
+        else:
+            best = 1000
+
+            for i in range(3):
+                for j in range(3):
+                    if self.board[i][j] == 0:
+                        self.board[i][j] = self.X
+                        best = min(best, self.minimax(depth + 1, not is_max))
+                        self.board[i][j] = 0
+            return best
+
+    def find_best_move(self):
+        best_val = -1000
+        best_move = (-1, -1)
+
+        for i in range(3):
+            for j in range(3):
+                if self.board[i][j] == 0:
+                    self.board[i][j] = self.O
+                    move_val = self.minimax(0, False)
+                    self.board[i][j] = 0
+
+                    if move_val > best_val:
+                        best_move = (i, j)
+                        best_val = move_val
+
+        return best_move
+
+    async def bot_move(self, interaction: discord.Interaction):
+        row, col = self.find_best_move()
+        self.board[row][col] = self.O
+        for child in self.children:
+            if isinstance(child, TicTacToeButton):
+                if child.x == col and child.y == row:
+                    child.style = discord.ButtonStyle.success
+                    child.label = 'O'
+                    child.disabled = True
+                    break
+
+        self.current_player = self.X
+        winner = self.check_winner()
+        content = "It is now X's turn"
+
+        if winner is not None:
+            if winner == self.X:
+                content = 'X won!'
+            elif winner == self.O:
+                content = 'O won!'
+            else:
+                content = "It's a tie!"
+
+            for child in self.children:
+                child.disabled = True
+
+            self.stop()
+
+        await interaction.edit_original_response(content=content, view=self)
 
 @bot.slash_command(name='tic_tac_toe', description='Play a game of Tic-Tac-Toe')
-async def tic_tac_toe(ctx):
-    await ctx.respond("Tic Tac Toe: X goes first", view=TicTacToeView())
+async def tic_tac_toe(ctx, opponent: str):
+    if opponent not in ["bot", "player"]:
+        await ctx.respond("Invalid opponent. Choose 'bot' or 'player'.")
+        return
+    await ctx.respond(f"Tic Tac Toe: X goes first", view=TicTacToeView(opponent))
 
 @bot.slash_command(name='wyr', description='Play a game of Would You Rather')
 async def would_you_rather(ctx):
@@ -704,37 +825,23 @@ async def memory_game(ctx):
     await ctx.respond("Memory Game: Find all pairs!", view=MemoryGameView())
 
 @bot.slash_command(name="giveaway", description="Starts a giveaway")
-async def _giveaway(ctx, winners: int, prize: str):
-    # Проверка на наличие прав администратора у пользователя
+async def _giveaway(ctx: discord.ApplicationContext, winners: int, prize: str):
     if ctx.author.guild_permissions.administrator:
         guild = bot.get_guild(ctx.guild_id)
-        
-        # Получение всех участников сервера (исключая ботов)
         participants = [member for member in guild.members if not member.bot]
-
-        # Проверка наличия участников
         if len(participants) == 0:
-            await ctx.send("Not enough participants for the giveaway.")
+            await ctx.respond("Not enough participants for the giveaway.")
             return
-
-        # Выбор случайных победителей
         winners_list = random.sample(participants, min(winners, len(participants)))
-
-        # Подготовка текста с победителями
         winners_text = "\n".join([winner.mention for winner in winners_list])
         win_message = f"Congratulations to the winners!\n{winners_text}"
-
-        # Формирование Embed-сообщения с результатами розыгрыша
         embed = discord.Embed(title="🎉 Giveaway Results 🎉",
                               description=f"**Prize:** {prize}\n**Number of winners:** {winners}",
                               color=discord.Color.green())
         embed.add_field(name="Winners:", value=win_message)
-
-        # Отправка Embed-сообщения с результатами розыгрыша
-        await ctx.send(embed=embed)
-
+        await ctx.respond(embed=embed)
     else:
-        await ctx.send("You do not have permission to start a giveaway.")  # Сообщение об отсутствии прав администратора
+        await ctx.respond("You do not have permission to start a giveaway.")
 
 timezones = {
     'UTC': 'UTC',
@@ -757,12 +864,10 @@ async def time(ctx):
     
     await ctx.send(time_message)
 
-@bot.command(name='coin', help='Flips a coin and shows the result (heads or tails)')
-async def flip_coin(ctx):
-
+@bot.slash_command(name='coin', description='Flips a coin and shows the result (heads or tails)')
+async def flip_coin(ctx: discord.ApplicationContext):
     result = random.choice(['heads', 'tails'])
-    
-    await ctx.send(f'The coin landed on: {result}')
+    await ctx.respond(f'The coin landed on: {result}')
 
 flags = {
     "Germany": "https://upload.wikimedia.org/wikipedia/en/thumb/b/ba/Flag_of_Germany.svg/1200px-Flag_of_Germany.svg.png",
@@ -787,26 +892,38 @@ flags = {
     "Sweden": "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Flag_of_Sweden.svg/1200px-Flag_of_Sweden.svg.png",
 }
 
-@bot.slash_command(name='flaggame', help='Play a game to guess the country by its flag')
+class FlagGameView(discord.ui.View):
+    def __init__(self, ctx, country):
+        super().__init__()
+        self.ctx = ctx
+        self.country = country
+
+    @discord.ui.button(label="Submit Answer", style=discord.ButtonStyle.primary)
+    async def submit_answer(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.send_message("Please type your answer below:")
+
+        def check_answer(message):
+            return message.author == self.ctx.author and message.channel == self.ctx.channel
+
+        try:
+            msg = await bot.wait_for('message', check=check_answer, timeout=30)
+            answer = msg.content.strip().capitalize()
+
+            if answer == self.country:
+                await self.ctx.send(f"Correct! {self.country} is the correct answer!")
+            else:
+                await self.ctx.send(f"Sorry, the correct answer was {self.country}. Better luck next time!")
+        except asyncio.TimeoutError:
+            await self.ctx.send(f"Time's up! The correct answer was {self.country}.")
+
+        self.stop()
+
+@bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag')
 async def flag_game(ctx):
     country = random.choice(list(flags.keys()))
     flag_url = flags[country]
 
-    await ctx.send(f"Guess the country by its flag!\n{flag_url}")
-
-    def check_answer(message):
-        return message.author == ctx.author and message.channel == ctx.channel
-
-    try:
-        msg = await bot.wait_for('message', check=check_answer, timeout=30)
-        answer = msg.content.strip().capitalize()
-
-        if answer == country:
-            await ctx.send(f"Correct! {country} is the correct answer!")
-        else:
-            await ctx.send(f"Sorry, the correct answer was {country}. Better luck next time!")
-    except asyncio.TimeoutError:
-        await ctx.send(f"Time's up! The correct answer was {country}.")
+    await ctx.respond(f"Guess the country by its flag!\n{flag_url}", view=FlagGameView(ctx, country))
 
 @bot.slash_command(name="joke", description="Выводит случайную шутку")
 async def joke(ctx):
