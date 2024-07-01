@@ -93,7 +93,7 @@ async def rules(ctx):
     embed = discord.Embed(
         title="Rules of the Server",
         description="Please familiarize yourself with these rules to maintain a pleasant and harmonious atmosphere on the server. Thank you for your understanding and for adhering to the rules! 🌟👮‍♂️",
-        color=discord.Color.from_rgb(0, 0, 0)   
+        color=discord.Color.from_rgb(0, 0, 0)
     )
 
     rules = [
@@ -117,13 +117,21 @@ async def rules(ctx):
     for rule, violation in rules:
         embed.add_field(name=rule, value=violation, inline=False)
 
-    await ctx.send(embed=embed)
+    try:
+        await ctx.respond(embed=embed)
+    except discord.HTTPException as e:
+        print(f"Failed to send rules: {e}")
+        await ctx.respond("Failed to send the rules. Please try again later.")
 
 @bot.slash_command(name='kick', description='Kick a user from the server')
 async def kick(ctx, user: Option(discord.Member, description='Select a user')):
     if ctx.author.guild_permissions.kick_members:
-        await user.kick()
-        await ctx.respond(f"{user.mention} has been kicked from the server.")
+        try:
+            await user.kick()
+            await ctx.respond(f"{user.mention} has been kicked from the server.")
+        except discord.HTTPException as e:
+            print(f"Failed to kick user: {e}")
+            await ctx.respond("Failed to kick the user. Please try again later.")
     else:
         await ctx.respond("You do not have permission to kick members.")
 
@@ -141,6 +149,9 @@ async def warn(ctx, user: Option(discord.Member, description='Select a user')):
     except discord.Forbidden:
         await ctx.respond(f"{user.mention} has been warned, but their DMs are closed.")
         await ctx.send(f"{user.mention}, you have been warned for violating server rules in {ctx.guild.name}. Please adhere to the rules.", embed=embed)
+    except discord.HTTPException as e:
+        print(f"Failed to warn user: {e}")
+        await ctx.respond("Failed to send the warning. Please try again later.")
 
 @bot.command()
 @is_admin_or_developer()
