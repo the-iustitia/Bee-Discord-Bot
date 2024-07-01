@@ -934,7 +934,15 @@ async def flag_game(ctx):
     country = random.choice(list(flags.keys()))
     flag_url = flags[country]
 
-    await ctx.respond(f"Guess the country by its flag!\n{flag_url}", view=FlagGameView(ctx, country))
+    embed = discord.Embed(
+        title="Guess the Country!",
+        description="Can you guess the country by its flag?",
+        color=discord.Color.blue()
+    )
+    embed.set_image(url=flag_url)
+    embed.set_footer(text="Click the button below to submit your answer.")
+
+    await ctx.respond(embed=embed, view=FlagGameView(ctx, country))
 
 @bot.slash_command(name="joke", description="Выводит случайную шутку")
 async def joke(ctx):
