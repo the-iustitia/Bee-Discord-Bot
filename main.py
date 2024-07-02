@@ -1,6 +1,6 @@
 from typing import List
 import discord
-from discord.ext import commands
+from discord.ext import commands,tasks
 from discord import Option
 import requests
 from discord.ui import Button, View
@@ -866,19 +866,37 @@ timezones = {
 }
 
 @bot.slash_command(name="time", description="Send time in different time zones")
-async def time(ctx):
-    time_message = "Current times in various timezones:\n"
+async def time(ctx: discord.ApplicationContext):
+    embed = discord.Embed(
+        title="Current Times in Various Timezones",
+        color=discord.Color.blue()
+    )
+
     for zone, tz in timezones.items():
         timezone = pytz.timezone(tz)
         current_time = datetime.now(timezone).strftime('%Y-%m-%d %H:%M:%S')
-        time_message += f"{zone}: {current_time}\n"
-    
-    await ctx.send(time_message)
+        embed.add_field(name=zone, value=current_time, inline=False)
+
+    await ctx.respond(embed=embed)
+
+@tasks.loop(minutes=1)
+async def update_time_status():
+    now_utc = datetime.now(pytz.timezone('UTC')).strftime('%H:%M')
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"UTC Time: {now_utc}"))
+
+@update_time_status.before_loop
+async def before_update_time_status():
+    await bot.wait_until_ready()
+
+update_time_status.start()
 
 @bot.slash_command(name='coin', description='Flips a coin and shows the result (heads or tails)')
 async def flip_coin(ctx: discord.ApplicationContext):
-    result = random.choice(['heads', 'tails'])
-    await ctx.respond(f'The coin landed on: {result}')
+    if random.randint(1, 10000) == 1:
+        await ctx.respond("Oops! The coin rolled under the couch!")
+    else:
+        result = random.choice(['heads', 'tails'])
+        await ctx.respond(f'The coin landed on: {result}')
 
 flags = {
     "Germany": "https://upload.wikimedia.org/wikipedia/en/thumb/b/ba/Flag_of_Germany.svg/1200px-Flag_of_Germany.svg.png",
@@ -914,7 +932,7 @@ class FlagGameView(discord.ui.View):
         await interaction.response.send_message("Please type your answer below:")
 
         def check_answer(message):
-            return message.author == self.ctx.author and message.channel == self.ctx.channel
+            return message.channel == self.ctx.channel
 
         try:
             msg = await bot.wait_for('message', check=check_answer, timeout=30)
