@@ -976,4 +976,8 @@ async def joke(ctx):
             else:
                 await ctx.respond("Не удалось получить шутку, попробуйте позже.")
 
+@bot.message_command(name="Get Message ID")
+async def get_message_id(ctx, message: discord.Message):
+    await ctx.respond(f"Message ID: `{message.id}`")
+
 bot.run("")
