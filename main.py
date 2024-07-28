@@ -4,11 +4,13 @@ from discord.ext import commands,tasks
 from discord import Option
 import requests
 from discord.ui import Button, View
+from discord import IntegrationType
 import random
 import asyncio
 from datetime import datetime
 import pytz
 import aiohttp
+import json
 
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
 
@@ -26,7 +28,9 @@ async def on_command_error(ctx, error):
 async def on_ready():
     print('Logged in as {0.user}'.format(bot))
 
-@bot.slash_command(name='profile', description='Displays user passport information')
+@bot.slash_command(name='profile', description='Displays user passport information', integration_types = {
+    IntegrationType.user_install
+  })
 async def user_info(ctx, user: Option(discord.Member, description='Select a user', required=False)):
     user = user or ctx.author
     
@@ -47,7 +51,9 @@ async def user_info(ctx, user: Option(discord.Member, description='Select a user
     
     await ctx.respond(embed=embed)
 
-@bot.slash_command(name='server', description='Displays information about the server')
+@bot.slash_command(name='server', description='Displays information about the server', integration_types = {
+    IntegrationType.user_install
+  })
 async def server_info(ctx):
     guild = ctx.guild
     embed = discord.Embed(title=f"Server Information for {guild.name}", color=discord.Color.from_rgb(0, 0, 0))
@@ -61,21 +67,36 @@ async def server_info(ctx):
     
     await ctx.respond(embed=embed)
 
-@bot.slash_command(name='fun_fact', description='Get a random fun fact')
-async def fun_fact(ctx):
-    await ctx.channel.trigger_typing()
+@slash_command(name='fun_fact', description='Get a random fun fact', integration_types = {
+    IntegrationType.user_install
+  })
+async def fun_fact(ctx: ApplicationContext):
     try:
-        response = requests.get('https://uselessfacts.jsph.pl/random.json')
+        # Проверка прав доступа
+        if not ctx.channel.permissions_for(ctx.guild.me).send_messages:
+            await ctx.respond("I have no premission's to send messages in this channel.")
+            return
+        
+        await ctx.channel.trigger_typing()
+        
+        response = requests.get('https://uselessfacts.jsph.pl/random.json?language=en')
         response.raise_for_status()
         data = response.json()
         fact_text = data['text']
-
+        
         embed = discord.Embed(title="Fun Fact", description=fact_text, color=discord.Color.from_rgb(0, 0, 0))
         await ctx.respond(embed=embed)
+        
     except requests.exceptions.RequestException as e:
         await ctx.respond(f"An error occurred while fetching a fun fact: {e}")
+    except discord.errors.Forbidden:
+        await ctx.respond("I have no access.")
+    except Exception as e:
+        await ctx.respond(f"Error: {e}")
 
-@bot.slash_command(name='avatar', description='Displays the avatar of the specified user')
+@bot.slash_command(name='avatar', description='Displays the avatar of the specified user', integration_types = {
+    IntegrationType.user_install
+  })
 async def avatar(ctx, user: Option(discord.Member, description='Select a user', required=False)):
     user = user or ctx.author
     
@@ -121,7 +142,7 @@ async def rules(ctx):
 
 @bot.slash_command(name='kick', description='Kick a user from the server')
 async def kick(ctx, user: Option(discord.Member, description='Select a user')):
-    if ctx.author.guild_permissions.kick_members:
+    if ctx.author.guild_permissions.ban_members or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         try:
             await user.kick()
             await ctx.respond(f"{user.mention} has been kicked from the server.")
@@ -237,7 +258,9 @@ async def clear(ctx: discord.ApplicationContext, amount_or_all: str):
     else:
         await ctx.respond("You do not have permission to delete messages.")
 
-@bot.slash_command(name='trivia', description='Answer a random trivia question')
+@bot.slash_command(name='trivia', description='Answer a random trivia question', integration_types = {
+    IntegrationType.user_install
+  })
 async def trivia(ctx):
     questions = [
         ("In what year did World War I begin?", "1914"),
@@ -300,7 +323,9 @@ async def trivia(ctx):
     else:
         await ctx.send(f"Wrong answer. The correct answer was {answer}.")
 
-@bot.slash_command(name='guess', description='Guess a number between 1 and 100')
+@bot.slash_command(name='guess', description='Guess a number between 1 and 100', integration_types = {
+    IntegrationType.user_install
+  })
 async def guess_number(ctx):
     number = random.randint(1, 100)
     await ctx.respond("I'm thinking of a number between 1 and 100. Can you guess what it is?")
@@ -362,7 +387,9 @@ class RPSButtonView(View):
 
         await interaction.response.edit_message(content=f"You chose {user_choice}, I chose {bot_choice}. {result}", view=None)
 
-@bot.slash_command(name='rps', description='Play Rock-Paper-Scissors')
+@bot.slash_command(name='rps', description='Play Rock-Paper-Scissors', integration_types = {
+    IntegrationType.user_install
+  })
 async def rock_paper_scissors(ctx):
     view = RPSButtonView(ctx, None, None)
     await ctx.respond("Choose Rock, Paper, or Scissors:", view=view)
@@ -398,7 +425,9 @@ class TruthOrDareButtonView(discord.ui.View):
             pass
 
 
-@bot.slash_command(name='truth_or_dare', description='Play a game of Truth or Dare')
+@bot.slash_command(name='truth_or_dare', description='Play a game of Truth or Dare', integration_types = {
+    IntegrationType.user_install
+  })
 async def truth_or_dare(ctx):
     truths = [
         "What is your biggest fear?",
@@ -512,7 +541,9 @@ class SpinButton(Button):
         else:
             await interaction.response.send_message(f"{' '.join(result)} - You lost!", ephemeral=False)
 
-@bot.slash_command(name='casino', description='Start a casino game')
+@bot.slash_command(name='casino', description='Start a casino game', integration_types = {
+    IntegrationType.user_install
+  })
 async def casino(ctx):
     view = CasinoView()
     await ctx.respond("Welcome to the Casino! Place your bet and spin the slot machine.", view=view)
@@ -726,7 +757,9 @@ class TicTacToeView(discord.ui.View):
 
         await interaction.edit_original_response(content=content, view=self)
 
-@bot.slash_command(name='tic_tac_toe', description='Play a game of Tic-Tac-Toe')
+@bot.slash_command(name='tic_tac_toe', description='Play a game of Tic-Tac-Toe', integration_types = {
+    IntegrationType.user_install
+  })
 async def tic_tac_toe(ctx, opponent: str):
     if opponent not in ["bot", "player"]:
         await ctx.respond("Invalid opponent. Choose 'bot' or 'player'.")
@@ -822,11 +855,16 @@ class MemoryGameView(discord.ui.View):
         for i, label in enumerate(self.board):
             self.add_item(MemoryButton(label, i // 4, i % 5))
 
-@bot.slash_command(name='memory_game', description='Play a memory game')
+@bot.slash_command(name='memory_game', description='Play a memory game', integration_types = {
+    IntegrationType.user_install
+  }
+)
 async def memory_game(ctx):
     await ctx.respond("Memory Game: Find all pairs!", view=MemoryGameView())
 
-@bot.slash_command(name="giveaway", description="Starts a giveaway")
+@bot.slash_command(name="giveaway", description="Starts a giveaway", integration_types = {
+    IntegrationType.user_install
+  })
 async def _giveaway(ctx: discord.ApplicationContext, winners: int, prize: str):
     if ctx.author.guild_permissions.administrator:
         guild = bot.get_guild(ctx.guild_id)
@@ -856,7 +894,9 @@ timezones = {
     'AEST': 'Australia/Sydney'
 }
 
-@bot.slash_command(name="time", description="Send time in different time zones")
+@bot.slash_command(name="time", description="Send time in different time zones", integration_types = {
+    IntegrationType.user_install
+  })
 async def time(ctx: discord.ApplicationContext):
     embed = discord.Embed(
         title="Current Times in Various Timezones",
@@ -881,7 +921,9 @@ async def before_update_time_status():
 
 update_time_status.start()
 
-@bot.slash_command(name='coin', description='Flips a coin and shows the result (heads or tails)')
+@bot.slash_command(name='coin', description='Flips a coin and shows the result (heads or tails)', integration_types = {
+    IntegrationType.user_install
+  })
 async def flip_coin(ctx: discord.ApplicationContext):
     if random.randint(1, 10000) == 1:
         await ctx.respond("Oops! The coin rolled under the couch!")
@@ -910,6 +952,26 @@ flags = {
     "Turkey": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Flag_of_Turkey.svg/1200px-Flag_of_Turkey.svg.png",
     "Netherlands": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Flag_of_the_Netherlands.svg/1200px-Flag_of_the_Netherlands.svg.png",
     "Sweden": "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Flag_of_Sweden.svg/1200px-Flag_of_Sweden.svg.png",
+    "Austria": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Flag_of_Austria.svg/1200px-Flag_of_Austria.svg.png",
+    "Belgium": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Flag_of_Belgium.svg/1200px-Flag_of_Belgium.svg.png",
+    "Switzerland": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Flag_of_Switzerland.svg/1200px-Flag_of_Switzerland.svg.png",
+    "Norway": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Flag_of_Norway.svg/1200px-Flag_of_Norway.svg.png",
+    "Finland": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Flag_of_Finland.svg/1200px-Flag_of_Finland.svg.png",
+    "Denmark": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Flag_of_Denmark.svg/1200px-Flag_of_Denmark.svg.png",
+    "Ireland": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Flag_of_Ireland.svg/1200px-Flag_of_Ireland.svg.png",
+    "Portugal": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Flag_of_Portugal.svg/1200px-Flag_of_Portugal.svg.png",
+    "Greece": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Flag_of_Greece.svg/1200px-Flag_of_Greece.svg.png",
+    "Poland": "https://upload.wikimedia.org/wikipedia/en/thumb/1/12/Flag_of_Poland.svg/1200px-Flag_of_Poland.svg.png",
+    "Hungary": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Flag_of_Hungary.svg/1200px-Flag_of_Hungary.svg.png",
+    "Czech Republic": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Flag_of_the_Czech_Republic.svg/1200px-Flag_of_the_Czech_Republic.svg.png",
+    "Slovakia": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Flag_of_Slovakia.svg/1200px-Flag_of_Slovakia.svg.png",
+    "Romania": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Flag_of_Romania.svg/1200px-Flag_of_Romania.svg.png",
+    "Bulgaria": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Flag_of_Bulgaria.svg/1200px-Flag_of_Bulgaria.svg.png",
+    "Croatia": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Flag_of_Croatia.svg/1200px-Flag_of_Croatia.svg.png",
+    "Slovenia": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Flag_of_Slovenia.svg/1200px-Flag_of_Slovenia.svg.png",
+    "Lithuania": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Flag_of_Lithuania.svg/1200px-Flag_of_Lithuania.svg.png",
+    "Latvia": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Flag_of_Latvia.svg/1200px-Flag_of_Latvia.svg.png",
+    "Estonia": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Flag_of_Estonia.svg/1200px-Flag_of_Estonia.svg.png",
 }
 
 class FlagGameView(discord.ui.View):
@@ -938,7 +1000,9 @@ class FlagGameView(discord.ui.View):
 
         self.stop()
 
-@bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag')
+@bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag', integration_types = {
+    IntegrationType.user_install
+  })
 async def flag_game(ctx):
     country = random.choice(list(flags.keys()))
     flag_url = flags[country]
@@ -953,7 +1017,9 @@ async def flag_game(ctx):
 
     await ctx.respond(embed=embed, view=FlagGameView(ctx, country))
 
-@bot.slash_command(name="joke", description="Sending a random joke")
+@bot.slash_command(name="joke", description="Sending a random joke", integration_types = {
+    IntegrationType.user_install
+  })
 async def joke(ctx):
     async with aiohttp.ClientSession() as session:
         async with session.get("https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,racist,sexist,explicit") as response:
@@ -970,4 +1036,40 @@ async def joke(ctx):
 @bot.message_command(name="Get Message ID")
 async def get_message_id(ctx, message: discord.Message):
     await ctx.respond(f"Message ID: `{message.id}`")
+
+def load_data():
+    try:
+        with open('click_data.json', 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}
+
+def save_data(data):
+    with open('click_data.json', 'w') as file:
+        json.dump(data, file)
+
+class ClickerView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Click Me!", style=discord.ButtonStyle.primary, custom_id="click_button")
+    async def click_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user_id = str(interaction.user.id)
+        data = load_data()
+
+        if user_id not in data:
+            data[user_id] = 0
+        data[user_id] += 1
+
+        save_data(data)
+
+        await interaction.response.send_message(f"Your clicks: {data[user_id]}", ephemeral=True)
+
+@bot.slash_command(name="clicker", description="Click as long as possible", integration_types = {
+    IntegrationType.user_install
+  })
+async def clicker(ctx):
+    view = ClickerView()
+    await ctx.send("Click the button to start clicking!", view=view)
+
 bot.run('')
