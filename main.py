@@ -519,15 +519,7 @@ async def truth_or_dare(ctx):
 class CasinoView(View):
     def __init__(self):
         super().__init__()
-        self.add_item(BetButton())
         self.add_item(SpinButton())
-
-class BetButton(Button):
-    def __init__(self):
-        super().__init__(label="Place Bet", style=discord.ButtonStyle.primary)
-
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_message("You placed a bet! Now, spin the slot.", ephemeral=False)
 
 class SpinButton(Button):
     def __init__(self):
@@ -536,18 +528,31 @@ class SpinButton(Button):
     async def callback(self, interaction: discord.Interaction):
         slots = ["🍒", "🍋", "🍊", "🍇", "🍉", "🍓"]
         result = [random.choice(slots) for _ in range(3)]
+        
         if len(set(result)) == 1:
-            await interaction.response.send_message(f"{' '.join(result)} - You won!", ephemeral=False)
+            if result[0] == "🍒":
+                message = f"{' '.join(result)} - Jackpot! 🍒 You hit the cherry jackpot! 🎉"
+            elif result[0] == "🍓":
+                message = f"{' '.join(result)} - Strawberry Surprise! 🍓 Enjoy your bonus!"
+            else:
+                message = f"{' '.join(result)} - You won big!"
         else:
-            await interaction.response.send_message(f"{' '.join(result)} - You lost!", ephemeral=False)
+            if "🍒" in result and "🍋" in result:
+                message = f"{' '.join(result)} - Almost there! 🍒🍋 Keep spinning!"
+            else:
+                message = f"{' '.join(result)} - Better luck next time!"
 
-@bot.slash_command(name='casino', description='Start a casino game', integration_types = {
-    IntegrationType.user_install,
-    IntegrationType.guild_install
-  })
+        await interaction.response.send_message(message, ephemeral=False)
+
+@bot.slash_command(name='casino', description='Start a casino game', integration_types={
+    discord.enums.IntegrationType.user_install,
+    discord.enums.IntegrationType.guild_install
+})
 async def casino(ctx):
     view = CasinoView()
-    await ctx.respond("Welcome to the Casino! Place your bet and spin the slot machine.", view=view)
+    await ctx.respond("Welcome to the Casino! Spin the slot machine and see if you win big!", view=view)
+
+player_win_streak = {}
 
 class TicTacToeButton(discord.ui.Button):
     def __init__(self, x: int, y: int):
@@ -558,7 +563,7 @@ class TicTacToeButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         view: TicTacToeView = self.view
         state = view.board[self.y][self.x]
-        if state in (view.X, view.O):
+        if state in (view.X, view.O) or view.locked:
             return
 
         if view.current_player == view.X:
@@ -580,10 +585,16 @@ class TicTacToeButton(discord.ui.Button):
         if winner is not None:
             if winner == view.X:
                 content = 'X won!'
+                player_win_streak[interaction.user.id] = player_win_streak.get(interaction.user.id, 0) + 1
+                if player_win_streak[interaction.user.id] == 5:
+                    content += ' 🎉 Congratulations! You are the Tournament Champion!'
+                    player_win_streak[interaction.user.id] = 0
             elif winner == view.O:
                 content = 'O won!'
+                player_win_streak[interaction.user.id] = 0
             else:
                 content = "It's a tie!"
+                player_win_streak[interaction.user.id] = 0
 
             for child in view.children:
                 child.disabled = True
@@ -591,7 +602,7 @@ class TicTacToeButton(discord.ui.Button):
             view.stop()
 
         await interaction.response.edit_message(content=content, view=view)
-        
+
         if view.current_player == view.O and view.opponent == "bot":
             await view.bot_move(interaction)
 
@@ -746,10 +757,16 @@ class TicTacToeView(discord.ui.View):
         if winner is not None:
             if winner == self.X:
                 content = 'X won!'
+                player_win_streak[interaction.user.id] = player_win_streak.get(interaction.user.id, 0) + 1
+                if player_win_streak[interaction.user.id] == 5:
+                    content += ' 🎉 Congratulations! You are the Tournament Champion!'
+                    player_win_streak[interaction.user.id] = 0
             elif winner == self.O:
                 content = 'O won!'
+                player_win_streak[interaction.user.id] = 0
             else:
                 content = "It's a tie!"
+                player_win_streak[interaction.user.id] = 0
 
             for child in self.children:
                 child.disabled = True
@@ -832,6 +849,8 @@ class MemoryButton(discord.ui.Button):
                 if view.matches == len(view.board) // 2:
                     await interaction.followup.send("You have matched all pairs! 🎉")
                     view.stop()
+                    if random.randint(1, 1000) == 1:
+                        await interaction.followup.send("Congratulations! You've found the secret item! 🎉")
             else:
                 self.label = '?'
                 self.style = discord.ButtonStyle.secondary
@@ -849,6 +868,12 @@ class MemoryGameView(discord.ui.View):
     def __init__(self):
         super().__init__()
         self.board = ['🍎', '🍎', '🍌', '🍌', '🍒', '🍒', '🍇', '🍇', '🍉', '🍉', '🥭', '🥭', '🍓', '🍓', '🍍', '🍍', '🍊', '🍊', '🍋', '🍋']
+        
+        # Добавление редкого элемента
+        if random.randint(1, 1000) == 1:
+            self.board.append('🎉')
+            self.board.append('🎉')
+        
         random.shuffle(self.board)
         self.first_selection = None
         self.matches = 0
@@ -857,11 +882,10 @@ class MemoryGameView(discord.ui.View):
         for i, label in enumerate(self.board):
             self.add_item(MemoryButton(label, i // 4, i % 5))
 
-@bot.slash_command(name='memory_game', description='Play a memory game', integration_types = {
+@bot.slash_command(name='memory_game', description='Play a memory game', IntegrationType ={
     IntegrationType.user_install,
     IntegrationType.guild_install
-  }
-)
+})
 async def memory_game(ctx):
     await ctx.respond("Memory Game: Find all pairs!", view=MemoryGameView())
 
@@ -895,7 +919,8 @@ timezones = {
     'IST': 'Asia/Kolkata',
     'CST': 'America/Chicago',
     'JST': 'Asia/Tokyo',
-    'AEST': 'Australia/Sydney'
+    'AEST': 'Australia/Sydney',
+    'VA': 'Have no time'
 }
 
 @bot.slash_command(name="time", description="Send time in different time zones", integration_types = {
@@ -978,6 +1003,21 @@ flags = {
     "Lithuania": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Flag_of_Lithuania.svg/1200px-Flag_of_Lithuania.svg.png",
     "Latvia": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Flag_of_Latvia.svg/1200px-Flag_of_Latvia.svg.png",
     "Estonia": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Flag_of_Estonia.svg/1200px-Flag_of_Estonia.svg.png",
+    "New Zealand": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Flag_of_New_Zealand.svg/1200px-Flag_of_New_Zealand.svg.png",
+    "Chile": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Flag_of_Chile.svg/1200px-Flag_of_Chile.svg.png",
+    "Saudi Arabia": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Flag_of_Saudi_Arabia.svg/1200px-Flag_of_Saudi_Arabia.svg.png",
+    "Thailand": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Flag_of_Thailand.svg/1200px-Flag_of_Thailand.svg.png",
+    "Vietnam": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Flag_of_Vietnam.svg/1200px-Flag_of_Vietnam.svg.png",
+    "Malaysia": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Flag_of_Malaysia.svg/1200px-Flag_of_Malaysia.svg.png",
+    "Philippines": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Flag_of_the_Philippines.svg/1200px-Flag_of_the_Philippines.svg.png",
+    "Indonesia": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Flag_of_Indonesia.svg/1200px-Flag_of_Indonesia.svg.png",
+    "Egypt": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1200px-Flag_of_Egypt.svg.png",
+    "Nigeria": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Flag_of_Nigeria.svg/1200px-Flag_of_Nigeria.svg.png",
+    "Kenya": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Flag_of_Kenya.svg/1200px-Flag_of_Kenya.svg.png",
+    "Ghana": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Flag_of_Ghana.svg/1200px-Flag_of_Ghana.svg.png",
+    "Morocco": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Flag_of_Morocco.svg/1200px-Flag_of_Morocco.svg.png",
+    # редкий флаг (несуществующий)
+    'Mamluks': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Flag_of_Mamluks.svg/768px-Flag_of_Mamluks.svg.png',
 }
 
 class FlagGameView(discord.ui.View):
@@ -991,27 +1031,44 @@ class FlagGameView(discord.ui.View):
         await interaction.response.send_message("Please type your answer below:")
 
         def check_answer(message):
-            return message.channel == self.ctx.channel
+            return message.channel == self.ctx.channel and message.author == interaction.user
 
         try:
             msg = await bot.wait_for('message', check=check_answer, timeout=30)
             answer = msg.content.strip().capitalize()
 
             if answer == self.country:
-                await self.ctx.send(f"Correct! {self.country} is the correct answer!")
+                if self.country == 'Mamluks':
+                    await interaction.followup.send(f"Correct! You guessed the rare flag: {self.country}! 🎉")
+                elif self.country == 'Neverland':
+                    await interaction.followup.send(f"Correct! {self.country} is the correct answer! 🎉 You discovered the secret land!")
+                else:
+                    await interaction.followup.send(f"Correct! {self.country} is the correct answer!")
             else:
-                await self.ctx.send(f"Sorry, the correct answer was {self.country}. Better luck next time!")
+                if self.country == 'Mamluks':
+                    await interaction.followup.send("Sorry, your guess is incorrect.")
+                else:
+                    await interaction.followup.send(f"Sorry, the correct answer was {self.country}. Better luck next time!")
         except asyncio.TimeoutError:
-            await self.ctx.send(f"Time's up! The correct answer was {self.country}.")
-
+            if self.country == 'Mamluks':
+                await interaction.followup.send("Time's up! Your guess was not correct.")
+            else:
+                await interaction.followup.send(f"Time's up! The correct answer was {self.country}.")
+        except Exception as e:
+            await interaction.followup.send(f"An error occurred: {e}")
+        
         self.stop()
 
-@bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag', integration_types = {
+@bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag', IntegrationType = {
     IntegrationType.user_install,
     IntegrationType.guild_install
 })
 async def flag_game(ctx):
+    # Определение вероятности редкого флага
+    rare_flag_chance = 1000
     country = random.choice(list(flags.keys()))
+    if random.randint(1, rare_flag_chance) == 1:
+        country = 'Mamluks'
     flag_url = flags[country]
 
     embed = discord.Embed(
@@ -1029,17 +1086,23 @@ async def flag_game(ctx):
     IntegrationType.guild_install
 })
 async def joke(ctx):
-    async with aiohttp.ClientSession() as session:
-        async with session.get("https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,racist,sexist,explicit") as response:
-            if response.status == 200:
-                data = await response.json()
-                if data["type"] == "single":
-                    joke = data["joke"]
-                else:
-                    joke = f'{data["setup"]} - {data["delivery"]}'
-                await ctx.respond(joke)
-            else:
-                await ctx.respond("Try again later please.")
+    try:
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get("https://v2.jokeapi.dev/joke/Any?blacklistFlags=nsfw,racist,sexist,explicit") as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if data["type"] == "single":
+                            joke = data["joke"]
+                        else:
+                            joke = f'{data["setup"]} - {data["delivery"]}'
+                        await ctx.respond(joke)
+                    else:
+                        await ctx.respond("Failed to fetch joke, please try again later.")
+            except aiohttp.ClientError as e:
+                await ctx.respond(f"An error occurred while fetching the joke: {e}")
+    except Exception as e:
+        await ctx.respond(f"An unexpected error occurred: {e}")
 
 @bot.message_command(name="Get Message ID")
 async def get_message_id(ctx, message: discord.Message):
@@ -1059,5 +1122,5 @@ async def on_command_error(ctx, error):
     else:
         await ctx.send(f"Error: {error}")
         print(f"Ошибка: {error} - {ctx.message.content}")
-        
+
 bot.run('')
