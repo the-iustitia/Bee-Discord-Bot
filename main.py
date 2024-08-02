@@ -612,11 +612,14 @@ class TicTacToeView(discord.ui.View):
     O = 1
     Tie = 2
 
-    def __init__(self, opponent):
+    def __init__(self, opponent, difficulty):
         super().__init__()
         self.current_player = self.X
         self.board = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
         self.opponent = opponent
+        self.locked = False
+        self.difficulty = difficulty
+
         for x in range(3):
             for y in range(3):
                 self.add_item(TicTacToeButton(x, y))
@@ -723,6 +726,11 @@ class TicTacToeView(discord.ui.View):
             return best
 
     def find_best_move(self):
+        if self.difficulty == 'easy':
+            import random
+            empty_cells = [(i, j) for i in range(3) for j in range(3) if self.board[i][j] == 0]
+            return random.choice(empty_cells) if empty_cells else (-1, -1)
+        
         best_val = -1000
         best_move = (-1, -1)
 
@@ -781,9 +789,11 @@ class TicTacToeView(discord.ui.View):
         discord.enums.IntegrationType.guild_install
     })
 async def tic_tac_toe(
-    ctx, opponent: Option(str, "Choose your opponent", choices=["bot", "player"])
+    ctx, 
+    opponent: Option(str, "Choose your opponent", choices=["bot", "player"]),
+    difficulty: Option(str, "Choose bot difficulty", choices=["easy", "medium", "hard"]) = "medium"
 ):
-    await ctx.respond(f"Tic Tac Toe: X goes first", view=TicTacToeView(opponent))
+    await ctx.respond(f"Tic Tac Toe: X goes first. Difficulty: {difficulty}", view=TicTacToeView(opponent, difficulty))
 
 @bot.slash_command(name='wyr', description='Play a game of Would You Rather')
 async def would_you_rather(ctx):
@@ -920,7 +930,6 @@ timezones = {
     'CST': 'America/Chicago',
     'JST': 'Asia/Tokyo',
     'AEST': 'Australia/Sydney',
-    'VA': 'Have no time'
 }
 
 @bot.slash_command(name="time", description="Send time in different time zones", integration_types = {
