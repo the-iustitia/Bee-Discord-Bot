@@ -11,8 +11,9 @@ from datetime import datetime
 import pytz
 import aiohttp
 import json
+import os
 
-bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
+bot = commands.Bot(intents=discord.Intents.all())
 
 SPECIFIC_USER_ID = 1121059810717225030
 
@@ -1116,6 +1117,39 @@ async def joke(ctx):
 @bot.message_command(name="Get Message ID")
 async def get_message_id(ctx, message: discord.Message):
     await ctx.respond(f"Message ID: `{message.id}`")
+
+DATA_FILE = "clicker_data.json"
+
+if os.path.exists(DATA_FILE):
+    with open(DATA_FILE, "r") as f:
+        click_data = json.load(f)
+else:
+    click_data = {}
+
+def save_data():
+    with open(DATA_FILE, "w") as f:
+        json.dump(click_data, f)
+
+class ClickerButton(Button):
+    def __init__(self):
+        super().__init__(label="Click me!", style=discord.ButtonStyle.primary)
+
+    async def callback(self, interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        if user_id not in click_data:
+            click_data[user_id] = 0
+        click_data[user_id] += 1
+        save_data()
+        await interaction.response.send_message(f"You clicked the button {click_data[user_id]} times!", ephemeral=True)
+
+class ClickerView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(ClickerButton())
+
+@bot.slash_command(name="clicker", description="Start the clicker game")
+async def clicker(ctx: discord.ApplicationContext):
+    await ctx.respond("Click the button!", view=ClickerView())
 
 @bot.event
 async def on_command_error(ctx, error):
