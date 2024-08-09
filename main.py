@@ -117,28 +117,38 @@ async def kick(ctx, user: Option(discord.Member, description='Select a user')):
 
 @bot.slash_command(name='warn', description='Warn a user for violating server rules')
 async def warn(ctx, user: Option(discord.Member, description='Select a user')):
-    embed = discord.Embed(
-        title="Warning",
-        description=f"You have been warned for violating server rules in {ctx.guild.name}. Please adhere to the rules.",
-        color=discord.Color.gold()
-    )
+    # Check permissions
+    if ctx.author.guild_permissions.administrator or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
+        if user == ctx.author:
+            await ctx.respond("You cannot warn yourself.")
+            return
+        elif user.top_role >= ctx.author.top_role:
+            await ctx.respond("You cannot warn this user due to role hierarchy.")
+            return
 
-    try:
-        await user.send(embed=embed)
-        await ctx.respond(f"{user.mention} has been warned.")
-    except discord.Forbidden:
-        await ctx.respond(f"{user.mention} has been warned, but their DMs are closed.")
-        await ctx.send(f"{user.mention}, you have been warned for violating server rules in {ctx.guild.name}. Please adhere to the rules.", embed=embed)
-    except discord.HTTPException as e:
-        print(f"Failed to warn user: {e}")
-        await ctx.respond("Failed to send the warning. Please try again later.")
+        embed = discord.Embed(
+            title="Warning",
+            description=f"You have been warned for violating server rules in {ctx.guild.name}. Please adhere to the rules.",
+            color=discord.Color.gold()
+        )
+
+        try:
+            await user.send(embed=embed)
+            await ctx.respond(f"{user.mention} has been warned.")
+        except discord.Forbidden:
+            await ctx.respond(f"{user.mention} has been warned, but their DMs are closed.")
+        except discord.HTTPException as e:
+            print(f"Failed to warn user: {e}")
+            await ctx.respond("Failed to send the warning. Please try again later.")
+    else:
+        await ctx.respond("You do not have permission to warn members.")
 
 @bot.command()
 async def say(ctx, *, message: str):
     await ctx.message.delete()
-    await ctx.send(message)
+    await ctx.send(message)  
 
-@bot.context_menu(name='ban', description='Ban a user from the server')
+@bot.slash_command(name='ban', description='Ban a user from the server')
 async def ban(ctx, user: Option(discord.Member, description='Select a user')):
     if ctx.author.guild_permissions.ban_members or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         if user == ctx.author:
@@ -151,7 +161,7 @@ async def ban(ctx, user: Option(discord.Member, description='Select a user')):
     else:
         await ctx.respond("You do not have permission to ban members.")
 
-@bot.context_menu(name='mute', description='Mute a user in the server')
+@bot.slash_command(name='mute', description='Mute a user in the server')
 async def mute(ctx, user: Option(discord.Member, description='Select a user')):
     if ctx.author.guild_permissions.manage_roles or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
@@ -176,6 +186,34 @@ async def mute(ctx, user: Option(discord.Member, description='Select a user')):
             await ctx.respond(f"{user.mention} has been muted.")
     else:
         await ctx.respond("You do not have permission to mute members.")
+
+@bot.slash_command(name='unmute', description='Unmute a user in the server')
+async def unmute(ctx, user: Option(discord.Member, description='Select a user')):
+    if ctx.author.guild_permissions.manage_roles or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
+        muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
+        if not muted_role:
+            await ctx.respond("The 'Muted' role does not exist. Please create it first.")
+            return
+        
+        if muted_role not in user.roles:
+            await ctx.respond(f"{user.mention} is not muted.")
+        else:
+            await user.remove_roles(muted_role)
+            await ctx.respond(f"{user.mention} has been unmuted.")
+    else:
+        await ctx.respond("You do not have permission to unmute members.")
+
+@bot.slash_command(name='unban', description='Unban a user from the server')
+async def unban(ctx, user: Option(str, description='User ID to unban')):
+    if ctx.author.guild_permissions.ban_members or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
+        try:
+            user_obj = await bot.fetch_user(user)
+            await ctx.guild.unban(user_obj)
+            await ctx.respond(f"{user_obj.mention} has been unbanned from the server.")
+        except discord.NotFound:
+            await ctx.respond("User not found. Please provide a valid User ID.")
+    else:
+        await ctx.respond("You do not have permission to unban members.")
 
 @bot.slash_command(name='clear', description='Clear messages in a chat')
 async def clear(ctx: discord.ApplicationContext, amount_or_all: str):
