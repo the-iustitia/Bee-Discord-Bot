@@ -28,7 +28,7 @@ async def on_ready():
 async def user_info(ctx, user: Option(discord.Member, description='Select a user', required=False)):
     user = user or ctx.author
     
-    embed = discord.Embed(title=f"{user}'s User Information", color=discord.Color.from_rgb(0, 0, 0))
+    embed = discord.Embed(title=f"{user}'s User Information", color=discord.Color.from_rgb(255, 255, 0))
     embed.set_thumbnail(url=user.avatar.url)
     
     embed.add_field(name="Username", value=user.name, inline=True)
@@ -51,7 +51,7 @@ async def user_info(ctx, user: Option(discord.Member, description='Select a user
   })
 async def server_info(ctx):
     guild = ctx.guild
-    embed = discord.Embed(title=f"Server Information for {guild.name}", color=discord.Color.from_rgb(0, 0, 0))
+    embed = discord.Embed(title=f"Server Information for {guild.name}", color=discord.Color.from_rgb(255, 255, 0))
     
     embed.set_thumbnail(url=guild.icon.url)
     embed.add_field(name="Server Name", value=guild.name, inline=True)
@@ -62,15 +62,15 @@ async def server_info(ctx):
     
     await ctx.respond(embed=embed)
 
-@bot.slash_command(name='fun_fact', description='Get a random fun fact', integration_types = {
-    IntegrationType.user_install,
-    IntegrationType.guild_install
-  })
+@bot.slash_command(name='fun_fact', description='Get a random fun fact')
 async def fun_fact(ctx):
     try:
-        # Проверка прав доступа
+        if ctx.guild is None or ctx.channel is None:
+            await ctx.respond("This command can only be used in a server channel.")
+            return
+        
         if not ctx.channel.permissions_for(ctx.guild.me).send_messages:
-            await ctx.respond("I have no premission's to send messages in this channel.")
+            await ctx.respond("I have no permission to send messages in this channel.")
             return
         
         await ctx.channel.trigger_typing()
@@ -80,7 +80,7 @@ async def fun_fact(ctx):
         data = response.json()
         fact_text = data['text']
         
-        embed = discord.Embed(title="Fun Fact", description=fact_text, color=discord.Color.from_rgb(0, 0, 0))
+        embed = discord.Embed(title="Fun Fact", description=fact_text, color=discord.Color.from_rgb(255, 255, 0))
         await ctx.respond(embed=embed)
         
     except requests.exceptions.RequestException as e:
@@ -97,45 +97,11 @@ async def fun_fact(ctx):
 async def avatar(ctx, user: Option(discord.Member, description='Select a user', required=False)):
     user = user or ctx.author
     
-    embed = discord.Embed(title=f"{user}'s Avatar", color=discord.Color.from_rgb(0, 0, 0))
+    embed = discord.Embed(title=f"{user}'s Avatar", color=discord.Color.from_rgb(255, 255, 0))
     embed.set_image(url=user.avatar.url)
     
     await ctx.respond(embed=embed)
     
-@bot.slash_command(name="rules", description="Send the list of rules")
-async def rules(ctx):
-    embed = discord.Embed(
-        title="Rules of the Server",
-        description="Please familiarize yourself with these rules to maintain a pleasant and harmonious atmosphere on the server. Thank you for your understanding and for adhering to the rules! 🌟👮‍♂️",
-        color=discord.Color.from_rgb(0, 0, 0)
-    )
-
-    rules = [
-        ("🚫 **No swearing**", "Use of offensive language."),
-        ("🙏 **No blasphemy**", ""),
-        ("🚫 **No insults**", "Disrespectful or offensive comments towards other participants."),
-        ("🚫 **No discrimination**", "Displaying racist, sexist, or other forms of discrimination."),
-        ("🔞 **No pornography**", "Posting or discussing pornographic content."),
-        ("💥 **No violent content**", "Posting shocking or violent content."),
-        ("🚫 **No racism**", "Expressing racist statements or behavior."),
-        ("❤️ **Respect others**", "Unacceptable behavior towards other participants."),
-        ("🎥 **No deceptive videos/photos**", "Posting videos or photos with the intent to deceive other participants."),
-        ("🚫 **No spam**", "Repeated or mass posting of identical or meaningless messages."),
-        ("🚫 **No inappropriate names**", "Using inappropriate or offensive profile names."),
-        ("🚫 **No swastikas**", "Posting images of swastikas."),
-        ("📢 **No unwanted advertising**", "Posting advertising material without server staff consent."),
-        ("🗳️ **No discussion of politics**", "Discussion of politics, wars, or political actions."),
-        ("🗨️ **Communicate in relevant channels**", "Chatting in inappropriate channels, such as asking for car settings in a meme channel.")
-    ]
-
-    for rule, violation in rules:
-        embed.add_field(name=rule, value=violation, inline=False)
-
-    try:
-        await ctx.respond(embed=embed)
-    except discord.HTTPException as e:
-        print(f"Failed to send rules: {e}")
-        await ctx.respond("Failed to send the rules. Please try again later.")
 
 @bot.slash_command(name='kick', description='Kick a user from the server')
 async def kick(ctx, user: Option(discord.Member, description='Select a user')):
@@ -170,9 +136,9 @@ async def warn(ctx, user: Option(discord.Member, description='Select a user')):
 @bot.command()
 async def say(ctx, *, message: str):
     await ctx.message.delete()
-    await ctx.send(message)  
+    await ctx.send(message)
 
-@bot.slash_command(name='ban', description='Ban a user from the server')
+@bot.context_menu(name='ban', description='Ban a user from the server')
 async def ban(ctx, user: Option(discord.Member, description='Select a user')):
     if ctx.author.guild_permissions.ban_members or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         if user == ctx.author:
@@ -185,7 +151,7 @@ async def ban(ctx, user: Option(discord.Member, description='Select a user')):
     else:
         await ctx.respond("You do not have permission to ban members.")
 
-@bot.slash_command(name='mute', description='Mute a user in the server')
+@bot.context_menu(name='mute', description='Mute a user in the server')
 async def mute(ctx, user: Option(discord.Member, description='Select a user')):
     if ctx.author.guild_permissions.manage_roles or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
@@ -210,34 +176,6 @@ async def mute(ctx, user: Option(discord.Member, description='Select a user')):
             await ctx.respond(f"{user.mention} has been muted.")
     else:
         await ctx.respond("You do not have permission to mute members.")
-
-@bot.slash_command(name='unmute', description='Unmute a user in the server')
-async def unmute(ctx, user: Option(discord.Member, description='Select a user')):
-    if ctx.author.guild_permissions.manage_roles or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
-        muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
-        if not muted_role:
-            await ctx.respond("The 'Muted' role does not exist. Please create it first.")
-            return
-        
-        if muted_role not in user.roles:
-            await ctx.respond(f"{user.mention} is not muted.")
-        else:
-            await user.remove_roles(muted_role)
-            await ctx.respond(f"{user.mention} has been unmuted.")
-    else:
-        await ctx.respond("You do not have permission to unmute members.")
-
-@bot.slash_command(name='unban', description='Unban a user from the server')
-async def unban(ctx, user: Option(str, description='User ID to unban')):
-    if ctx.author.guild_permissions.ban_members or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
-        try:
-            user_obj = await bot.fetch_user(user)
-            await ctx.guild.unban(user_obj)
-            await ctx.respond(f"{user_obj.mention} has been unbanned from the server.")
-        except discord.NotFound:
-            await ctx.respond("User not found. Please provide a valid User ID.")
-    else:
-        await ctx.respond("You do not have permission to unban members.")
 
 @bot.slash_command(name='clear', description='Clear messages in a chat')
 async def clear(ctx: discord.ApplicationContext, amount_or_all: str):
@@ -393,42 +331,32 @@ class RPSButtonView(View):
 async def rock_paper_scissors(ctx):
     view = RPSButtonView(ctx, None, None)
     await ctx.respond("Choose Rock, Paper, or Scissors:", view=view)
-    
+
 class TruthOrDareButtonView(discord.ui.View):
-    def __init__(self, ctx):
-        super().__init__(timeout=15)
+    def __init__(self, ctx, truths, dares):
+        super().__init__(timeout=None)
         self.ctx = ctx
         self.result = None
+        self.truths = truths
+        self.dares = dares
 
     @discord.ui.button(label="Truth", style=discord.ButtonStyle.green)
     async def truth_button(self, button: discord.ui.Button, interaction: discord.Interaction):
-        try:
-            await interaction.response.defer()
-            if interaction.user != self.ctx.author:
-                await interaction.followup.send("This is not your game!", ephemeral=True)
-                return
-            self.result = "truth"
-            self.stop()
-        except discord.errors.InteractionError:
-            pass
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message("This is not your game!", ephemeral=True)
+            return
+        truth = random.choice(self.truths)
+        await interaction.response.edit_message(content=f"Truth: {truth}")
 
     @discord.ui.button(label="Dare", style=discord.ButtonStyle.red)
     async def dare_button(self, button: discord.ui.Button, interaction: discord.Interaction):
-        try:
-            await interaction.response.defer()
-            if interaction.user != self.ctx.author:
-                await interaction.followup.send("This is not your game!", ephemeral=False)
-                return
-            self.result = "dare"
-            self.stop()
-        except discord.errors.InteractionError:
-            pass
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message("This is not your game!", ephemeral=True)
+            return
+        dare = random.choice(self.dares)
+        await interaction.response.edit_message(content=f"Dare: {dare}")
 
-
-@bot.slash_command(name='truth_or_dare', description='Play a game of Truth or Dare', integration_types = {
-    IntegrationType.user_install,
-    IntegrationType.guild_install
-  })
+@bot.slash_command(name='truth_or_dare', description='Play a game of Truth or Dare')
 async def truth_or_dare(ctx):
     truths = [
         "What is your biggest fear?",
@@ -503,19 +431,8 @@ async def truth_or_dare(ctx):
         "Let the group choose an item for you to brush your teeth with."
     ]
 
-    view = TruthOrDareButtonView(ctx)
+    view = TruthOrDareButtonView(ctx, truths, dares)
     await ctx.respond("Truth or Dare? Click a button to choose.", view=view)
-
-    await view.wait()
-
-    if view.result == "truth":
-        truth = random.choice(truths)
-        await ctx.send(f"Truth: {truth}")
-    elif view.result == "dare":
-        dare = random.choice(dares)
-        await ctx.send(f"Dare: {dare}")
-    else:
-        await ctx.send("You didn't choose in time!")
 
 class CasinoView(View):
     def __init__(self):
@@ -1140,7 +1057,8 @@ class ClickerButton(Button):
             click_data[user_id] = 0
         click_data[user_id] += 1
         save_data()
-        await interaction.response.send_message(f"You clicked the button {click_data[user_id]} times!", ephemeral=True)
+        
+        await interaction.response.edit_message(content=f"You clicked the button {click_data[user_id]} times!")
 
 class ClickerView(View):
     def __init__(self):
@@ -1150,6 +1068,12 @@ class ClickerView(View):
 @bot.slash_command(name="clicker", description="Start the clicker game")
 async def clicker(ctx: discord.ApplicationContext):
     await ctx.respond("Click the button!", view=ClickerView())
+
+@bot.slash_command(name="check_clicks", description="Check your total clicks")
+async def check_clicks(ctx: discord.ApplicationContext):
+    user_id = str(ctx.author.id)
+    clicks = click_data.get(user_id, 0)
+    await ctx.respond(f"You have clicked the button {clicks} times!")
 
 @bot.event
 async def on_command_error(ctx, error):
