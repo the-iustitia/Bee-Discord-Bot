@@ -231,54 +231,17 @@ async def clear(ctx: discord.ApplicationContext, amount_or_all: str):
     else:
         await ctx.respond("You do not have permission to delete messages.")
 
+def load_trivia_questions(filename):
+    with open(filename, 'r') as file:
+        return json.load(file)
+
+trivia_questions = load_trivia_questions('trivia_questions.json')
+
 @bot.slash_command(name='trivia', description='Answer a random trivia question')
 async def trivia(ctx):
-    questions = [
-        ("In what year did World War I begin?", "1914"),
-        ("Who was the first President of the United States?", "George Washington"),
-        ("In what year was the Berlin Wall torn down?", "1989"),
-        ("Who was the pharaoh during the construction of the Great Pyramid of Giza?", "Khufu"),
-        ("Who was the leader of the Soviet Union during World War II?", "Joseph Stalin"),
-
-        ("What element is the main component of the Sun?", "Hydrogen"),
-        ("Who developed the theory of relativity?", "Albert Einstein"),
-        ("What gas makes up about 78% of the Earth's atmosphere?", "Nitrogen"),
-        ("Who discovered penicillin?", "Alexander Fleming"),
-        ("What is the hardest natural substance on Earth?", "Diamond"),
-
-        ("What is the longest river in the world?", "Nile"),
-        ("In which country is Mount Kilimanjaro located?", "Tanzania"),
-        ("What city is the capital of Australia?", "Canberra"),
-        ("What is the deepest lake in the world?", "Baikal"),
-        ("In which country is Machu Picchu located?", "Peru"),
-
-        ("Who wrote the novel 'War and Peace'?", "Leo Tolstoy"),
-        ("Which novel begins with the line 'All happy families are alike...'?", "Anna Karenina"),
-        ("Who is the author of 'Moby-Dick'?", "Herman Melville"),
-        ("Who wrote the 'Odyssey'?", "Homer"),
-        ("Which novel was written by George Orwell in 1949?", "1984"),
-
-        ("Who composed Symphony No. 9 'Ode to Joy'?", "Ludwig van Beethoven"),
-        ("Who painted 'Starry Night'?", "Vincent van Gogh"),
-        ("Which work of Michelangelo is in the Sistine Chapel?", "The Creation of Adam"),
-        ("Which famous Spanish painter created 'Guernica'?", "Pablo Picasso"),
-        ("Which ballet by Pyotr Tchaikovsky is based on a story by E.T.A. Hoffmann?", "The Nutcracker"),
-
-        ("What sport is considered the national sport of Japan?", "Sumo"),
-        ("In what year were the first modern Olympic Games held?", "1896"),
-        ("What is the name of the trophy awarded to the winner of the FIFA World Cup?", "FIFA World Cup Trophy"),
-        ("What animal is the mascot for the 2024 Paris Olympics?", "Phrygian cap"),
-        ("Who won the first Wimbledon tournament in 1877?", "Spencer Gore"),
-
-        ("What is the fastest land animal?", "Cheetah"),
-        ("Which fruit is known as the 'King of Fruits'?", "Durian"),
-        ("What holiday is celebrated on December 25th?", "Christmas"),
-        ("Which planet is the smallest in our solar system?", "Mercury"),
-        ("What is the most popular pet in the world?", "Cat")
-
-    ]
-    
-    question, answer = random.choice(questions)
+    question_data = random.choice(trivia_questions)
+    question = question_data['question']
+    answer = question_data['answer']
     await ctx.respond(f"Trivia Question: {question}")
 
     def check(msg):
@@ -288,6 +251,8 @@ async def trivia(ctx):
         msg = await bot.wait_for('message', timeout=15.0, check=check)
     except asyncio.TimeoutError:
         return await ctx.send(f"Sorry, you took too long. The correct answer was {answer}.")
+    except Exception as e:
+        return await ctx.send(f"An unexpected error occurred: {str(e)}")
 
     if msg.content.lower() == answer.lower():
         await ctx.send("Correct! 🎉")
@@ -364,6 +329,13 @@ async def rock_paper_scissors(ctx):
     view = RPSButtonView(ctx, None, None)
     await ctx.respond("Choose Rock, Paper, or Scissors:", view=view)
 
+def load_data(filename):
+    with open(filename, 'r') as file:
+        return json.load(file)
+
+truths = load_data('truths.json')
+dares = load_data('dares.json')
+
 class TruthOrDareButtonView(discord.ui.View):
     def __init__(self, ctx, truths, dares):
         super().__init__(timeout=None)
@@ -390,79 +362,6 @@ class TruthOrDareButtonView(discord.ui.View):
 
 @bot.slash_command(name='truth_or_dare', description='Play a game of Truth or Dare')
 async def truth_or_dare(ctx):
-    truths = [
-        "What is your biggest fear?",
-        "What is the most embarrassing thing you've ever done?",
-        "Have you ever lied to get out of trouble?",
-        "What is your biggest regret?",
-        "What is your secret talent?",
-        "Have you ever had a crush on someone in this room?",
-        "What is the worst gift you have ever received?",
-        "What is the most childish thing you still do?",
-        "Have you ever cheated on a test?",
-        "What is the strangest dream you've ever had?",
-        "If you could change one thing about your past, what would it be?",
-        "Who is your secret crush?",
-        "What is the most annoying habit you have?",
-        "What is the worst lie you’ve ever told?",
-        "What is something you have never told anyone?",
-        "Who was your first kiss?",
-        "What is the most embarrassing thing your parents have caught you doing?",
-        "What is the biggest misconception about you?",
-        "What is the most awkward date you have been on?",
-        "Have you ever been in love?",
-        "What is the weirdest thing you have ever done in public?",
-        "What is your guilty pleasure?",
-        "Have you ever stolen something?",
-        "What is the most trouble you have been in?",
-        "What is the weirdest food you have ever eaten?",
-        "What is your biggest pet peeve?",
-        "What is your biggest insecurity?",
-        "What is the meanest thing you have ever said to someone?",
-        "What is the most ridiculous thing you have done because you were bored?",
-        "What is the best prank you have ever pulled?",
-        "What is your most bizarre talent?",
-        "Have you ever broken a bone?",
-        "What is the most embarrassing song you secretly love?",
-        "If you could swap lives with someone for a day, who would it be?"
-    ]
-
-    dares = [
-        "Dance for 1 minute without music.",
-        "Let someone write a word on your forehead with a marker.",
-        "Sing the chorus of your favorite song.",
-        "Do 20 pushups.",
-        "Speak in an accent for the next 3 rounds.",
-        "Try to lick your elbow.",
-        "Post an embarrassing photo on social media.",
-        "Imitate a celebrity until someone can guess who you are.",
-        "Do your best chicken dance outside on the lawn.",
-        "Let someone tickle you for 30 seconds.",
-        "Talk in a funny voice for the next 5 minutes.",
-        "Act like a monkey until your next turn.",
-        "Do an impression of your favorite celebrity.",
-        "Wear socks on your hands for the next 10 minutes.",
-        "Dance with no music for 2 minutes.",
-        "Do your best impression of a baby being born.",
-        "Do your best impression of someone from the group.",
-        "Do 20 jumping jacks.",
-        "Let the person to your left draw on your face with a pen.",
-        "Speak in a different accent until your next turn.",
-        "Pretend to be a waiter/waitress and take snack orders from everyone in the group.",
-        "Attempt to do a magic trick.",
-        "Do your best breakdance move.",
-        "Pretend to be a chicken for 1 minute.",
-        "Let someone in the group give you a new hairstyle.",
-        "Imitate a cartoon character.",
-        "Do an impression of a celebrity of the group’s choosing.",
-        "Try to juggle 3 items (none of which can be balls).",
-        "Act like your favorite animal until your next turn.",
-        "Pretend you are a ballerina until your next turn.",
-        "Make a funny face and keep it that way until the next round.",
-        "Try to touch your nose with your tongue.",
-        "Let the group choose an item for you to brush your teeth with."
-    ]
-
     view = TruthOrDareButtonView(ctx, truths, dares)
     await ctx.respond("Truth or Dare? Click a button to choose.", view=view)
 
@@ -742,19 +641,18 @@ async def tic_tac_toe(
 ):
     await ctx.respond(f"Tic Tac Toe: X goes first. Difficulty: {difficulty}", view=TicTacToeView(opponent, difficulty))
 
+def load_questions():
+    with open('questions.json', 'r') as file:
+        return json.load(file)
+
+questions = load_questions()
+
 @bot.slash_command(name='wyr', description='Play a game of Would You Rather')
 async def would_you_rather(ctx):
-    questions = [
-        ("Would you rather be able to fly or be invisible?", "fly", "invisible"),
-        ("Would you rather have more time or more money?", "time", "money"),
-        ("Would you rather always be too hot or always be too cold?", "hot", "cold"),
-        ("Would you rather be able to talk to animals or speak all foreign languages?", "animals", "languages"),
-        ("Would you rather never be able to eat meat or never be able to eat vegetables?", "meat", "vegetables"),
-        ("Would you rather lose your vision or your hearing?", "vision", "hearing"),
-        ("Would you rather be famous or rich?", "famous", "rich")
-    ]
-    
-    question, option1, option2 = random.choice(questions)
+    question_data = random.choice(questions)
+    question = question_data['question']
+    option1 = question_data['option1']
+    option2 = question_data['option2']
 
     embed = discord.Embed(title="Would You Rather", description=question, color=discord.Color.blue())
     embed.add_field(name="Option 1", value=option1)
@@ -859,7 +757,7 @@ async def _giveaway(ctx: discord.ApplicationContext, winners: int, prize: str):
         win_message = f"Congratulations to the winners!\n{winners_text}"
         embed = discord.Embed(title="🎉 Giveaway Results 🎉",
                               description=f"**Prize:** {prize}\n**Number of winners:** {winners}",
-                              color=discord.Color.green())
+                              color=discord.Color.from_rgb(255, 255, 0))
         embed.add_field(name="Winners:", value=win_message)
         await ctx.respond(embed=embed)
     else:
@@ -915,63 +813,11 @@ async def flip_coin(ctx: discord.ApplicationContext):
         result = random.choice(['heads', 'tails'])
         await ctx.respond(f'The coin landed on: {result}')
 
-flags = {
-    "Germany": "https://upload.wikimedia.org/wikipedia/en/thumb/b/ba/Flag_of_Germany.svg/1200px-Flag_of_Germany.svg.png",
-    "France": "https://upload.wikimedia.org/wikipedia/en/thumb/c/c3/Flag_of_France.svg/1200px-Flag_of_France.svg.png",
-    "United States": "https://upload.wikimedia.org/wikipedia/en/thumb/a/a4/Flag_of_the_United_States.svg/1200px-Flag_of_the_United_States.svg.png",
-    "United Kingdom": "https://upload.wikimedia.org/wikipedia/en/thumb/a/ae/Flag_of_the_United_Kingdom.svg/1200px-Flag_of_the_United_Kingdom.svg.png",
-    "Canada": "https://upload.wikimedia.org/wikipedia/en/thumb/c/cf/Flag_of_Canada.svg/1200px-Flag_of_Canada.svg.png",
-    "Italy": "https://upload.wikimedia.org/wikipedia/en/thumb/0/03/Flag_of_Italy.svg/1200px-Flag_of_Italy.svg.png",
-    "Spain": "https://upload.wikimedia.org/wikipedia/en/thumb/9/9a/Flag_of_Spain.svg/1200px-Flag_of_Spain.svg.png",
-    "Russia": "https://upload.wikimedia.org/wikipedia/en/thumb/f/f3/Flag_of_Russia.svg/1200px-Flag_of_Russia.svg.png",
-    "China": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Flag_of_the_People%27s_Republic_of_China.svg/1200px-Flag_of_the_People%27s_Republic_of_China.svg.png",
-    "Japan": "https://upload.wikimedia.org/wikipedia/en/thumb/9/9e/Flag_of_Japan.svg/1200px-Flag_of_Japan.svg.png",
-    "Australia": "https://upload.wikimedia.org/wikipedia/en/thumb/b/b9/Flag_of_Australia.svg/1200px-Flag_of_Australia.svg.png",
-    "Brazil": "https://upload.wikimedia.org/wikipedia/en/thumb/0/05/Flag_of_Brazil.svg/1200px-Flag_of_Brazil.svg.png",
-    "Argentina": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Flag_of_Argentina.svg/1200px-Flag_of_Argentina.svg.png",
-    "South Africa": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Flag_of_South_Africa.svg/1200px-Flag_of_South_Africa.svg.png",
-    "India": "https://upload.wikimedia.org/wikipedia/en/thumb/4/41/Flag_of_India.svg/1200px-Flag_of_India.svg.png",
-    "South Korea": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Flag_of_South_Korea.svg/1200px-Flag_of_South_Korea.svg.png",
-    "Mexico": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Flag_of_Mexico.svg/1200px-Flag_of_Mexico.svg.png",
-    "Turkey": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Flag_of_Turkey.svg/1200px-Flag_of_Turkey.svg.png",
-    "Netherlands": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Flag_of_the_Netherlands.svg/1200px-Flag_of_the_Netherlands.svg.png",
-    "Sweden": "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Flag_of_Sweden.svg/1200px-Flag_of_Sweden.svg.png",
-    "Austria": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Flag_of_Austria.svg/1200px-Flag_of_Austria.svg.png",
-    "Belgium": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Flag_of_Belgium.svg/1200px-Flag_of_Belgium.svg.png",
-    "Switzerland": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Flag_of_Switzerland.svg/1200px-Flag_of_Switzerland.svg.png",
-    "Norway": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Flag_of_Norway.svg/1200px-Flag_of_Norway.svg.png",
-    "Finland": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Flag_of_Finland.svg/1200px-Flag_of_Finland.svg.png",
-    "Denmark": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Flag_of_Denmark.svg/1200px-Flag_of_Denmark.svg.png",
-    "Ireland": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Flag_of_Ireland.svg/1200px-Flag_of_Ireland.svg.png",
-    "Portugal": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Flag_of_Portugal.svg/1200px-Flag_of_Portugal.svg.png",
-    "Greece": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Flag_of_Greece.svg/1200px-Flag_of_Greece.svg.png",
-    "Poland": "https://upload.wikimedia.org/wikipedia/en/thumb/1/12/Flag_of_Poland.svg/1200px-Flag_of_Poland.svg.png",
-    "Hungary": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Flag_of_Hungary.svg/1200px-Flag_of_Hungary.svg.png",
-    "Czech Republic": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Flag_of_the_Czech_Republic.svg/1200px-Flag_of_the_Czech_Republic.svg.png",
-    "Slovakia": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Flag_of_Slovakia.svg/1200px-Flag_of_Slovakia.svg.png",
-    "Romania": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Flag_of_Romania.svg/1200px-Flag_of_Romania.svg.png",
-    "Bulgaria": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Flag_of_Bulgaria.svg/1200px-Flag_of_Bulgaria.svg.png",
-    "Croatia": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Flag_of_Croatia.svg/1200px-Flag_of_Croatia.svg.png",
-    "Slovenia": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Flag_of_Slovenia.svg/1200px-Flag_of_Slovenia.svg.png",
-    "Lithuania": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Flag_of_Lithuania.svg/1200px-Flag_of_Lithuania.svg.png",
-    "Latvia": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Flag_of_Latvia.svg/1200px-Flag_of_Latvia.svg.png",
-    "Estonia": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Flag_of_Estonia.svg/1200px-Flag_of_Estonia.svg.png",
-    "New Zealand": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Flag_of_New_Zealand.svg/1200px-Flag_of_New_Zealand.svg.png",
-    "Chile": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Flag_of_Chile.svg/1200px-Flag_of_Chile.svg.png",
-    "Saudi Arabia": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Flag_of_Saudi_Arabia.svg/1200px-Flag_of_Saudi_Arabia.svg.png",
-    "Thailand": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Flag_of_Thailand.svg/1200px-Flag_of_Thailand.svg.png",
-    "Vietnam": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Flag_of_Vietnam.svg/1200px-Flag_of_Vietnam.svg.png",
-    "Malaysia": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Flag_of_Malaysia.svg/1200px-Flag_of_Malaysia.svg.png",
-    "Philippines": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Flag_of_the_Philippines.svg/1200px-Flag_of_the_Philippines.svg.png",
-    "Indonesia": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Flag_of_Indonesia.svg/1200px-Flag_of_Indonesia.svg.png",
-    "Egypt": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Flag_of_Egypt.svg/1200px-Flag_of_Egypt.svg.png",
-    "Nigeria": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Flag_of_Nigeria.svg/1200px-Flag_of_Nigeria.svg.png",
-    "Kenya": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Flag_of_Kenya.svg/1200px-Flag_of_Kenya.svg.png",
-    "Ghana": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Flag_of_Ghana.svg/1200px-Flag_of_Ghana.svg.png",
-    "Morocco": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Flag_of_Morocco.svg/1200px-Flag_of_Morocco.svg.png",
-    # редкий флаг (несуществующий)
-    'Mamluks': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Flag_of_Mamluks.svg/768px-Flag_of_Mamluks.svg.png',
-}
+def load_flags():
+    with open('flags.json', 'r') as file:
+        return json.load(file)
+
+flags = load_flags()
 
 class FlagGameView(discord.ui.View):
     def __init__(self, ctx, country):
@@ -1009,15 +855,11 @@ class FlagGameView(discord.ui.View):
                 await interaction.followup.send(f"Time's up! The correct answer was {self.country}.")
         except Exception as e:
             await interaction.followup.send(f"An error occurred: {e}")
-        
+
         self.stop()
 
-@bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag', IntegrationType = {
-    IntegrationType.user_install,
-    IntegrationType.guild_install
-})
+@bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag')
 async def flag_game(ctx):
-    # Определение вероятности редкого флага
     rare_flag_chance = 1000
     country = random.choice(list(flags.keys()))
     if random.randint(1, rare_flag_chance) == 1:
@@ -1100,6 +942,93 @@ async def check_clicks(ctx: discord.ApplicationContext):
     user_id = str(ctx.author.id)
     clicks = click_data.get(user_id, 0)
     await ctx.respond(f"You have clicked the button {clicks} times!")
+
+suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+values = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11}
+
+def create_deck():
+    return [{'suit': suit, 'rank': rank} for suit in suits for rank in ranks]
+
+def calculate_hand_value(hand):
+    value = sum(values[card['rank']] for card in hand)
+    num_aces = sum(1 for card in hand if card['rank'] == 'A')
+    
+    while value > 21 and num_aces:
+        value -= 10
+        num_aces -= 1
+    
+    return value
+
+@bot.slash_command(name='blackjack', description="Start the game")
+async def blackjack(ctx, opponent: discord.Member = None):
+    await ctx.defer()
+    await ctx.followup.send("Game is started")
+    if opponent is None:
+        opponent = ctx.author
+
+    deck = create_deck()
+    random.shuffle(deck)
+    
+    player_hand = [deck.pop(), deck.pop()]
+    dealer_hand = [deck.pop(), deck.pop()]
+    
+    player_value = calculate_hand_value(player_hand)
+    dealer_value = calculate_hand_value(dealer_hand)
+    
+    def hand_to_string(hand):
+        return ', '.join(f"{card['rank']} of {card['suit']}" for card in hand)
+    
+    class BlackjackView(View):
+        def __init__(self, ctx, player_hand, dealer_hand, deck, opponent, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.ctx = ctx
+            self.player_hand = player_hand
+            self.dealer_hand = dealer_hand
+            self.deck = deck
+            self.opponent = opponent
+            self.player_value = calculate_hand_value(player_hand)
+            self.dealer_value = calculate_hand_value(dealer_hand)
+            self.finished = False
+
+        @discord.ui.button(label='Hit', style=discord.ButtonStyle.primary)
+        async def hit_button(self, button: Button, interaction: discord.Interaction):
+            if self.finished:
+                return
+
+            self.player_hand.append(self.deck.pop())
+            self.player_value = calculate_hand_value(self.player_hand)
+            
+            if self.player_value > 21:
+                self.finished = True
+                await interaction.response.edit_message(content=f"**Your hand:** {hand_to_string(self.player_hand)} (Value: {self.player_value})\n\nYou bust! {self.opponent.mention} wins.", view=None)
+                return
+            
+            await interaction.response.edit_message(content=f"**Your hand:** {hand_to_string(self.player_hand)} (Value: {self.player_value})\n\nType `!blackjack {self.opponent.mention}` to continue or use the buttons again.")
+
+        @discord.ui.button(label='Stand', style=discord.ButtonStyle.secondary)
+        async def stand_button(self, button: Button, interaction: discord.Interaction):
+            if self.finished:
+                return
+            
+            self.finished = True
+            while self.dealer_value < 17:
+                self.dealer_hand.append(self.deck.pop())
+                self.dealer_value = calculate_hand_value(self.dealer_hand)
+            
+            result_message = f"**Your hand:** {hand_to_string(self.player_hand)} (Value: {self.player_value})\n**Dealer's hand:** {hand_to_string(self.dealer_hand)} (Value: {self.dealer_value})\n\n"
+            if self.dealer_value > 21 or self.player_value > self.dealer_value:
+                result_message += f"You win! 🎉"
+            elif self.player_value < self.dealer_value:
+                result_message += f"{self.opponent.mention} wins!"
+            else:
+                result_message += f"It's a tie!"
+            
+            await interaction.response.edit_message(content=result_message, view=None)
+
+    view = BlackjackView(ctx, player_hand, dealer_hand, deck, opponent)
+    
+    await ctx.send(f"**Your hand:** {hand_to_string(player_hand)} (Value: {player_value})\n**Dealer's hand:** {hand_to_string([dealer_hand[0]])} and a hidden card.\n\nUse the buttons below to choose your action.", view=view)
 
 @bot.event
 async def on_command_error(ctx, error):
