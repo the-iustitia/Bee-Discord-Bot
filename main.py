@@ -1,17 +1,39 @@
 from typing import List
 import discord
 from discord.ext import commands,tasks
-from discord import Option
-import requests
+from discord import Option, IntegrationType
 from discord.ui import Button, View
-from discord import IntegrationType
 import random
+import requests
 import asyncio
 from datetime import datetime
 import pytz
 import aiohttp
-import json
 import os
+import json
+
+DATA_FILE = "clicker_data.json"
+
+if os.path.exists(DATA_FILE):
+    with open(DATA_FILE, "r") as f:
+        click_data = json.load(f)
+else:
+    click_data = {}
+
+def save_data():
+    with open(DATA_FILE, "w") as f:
+        json.dump(click_data, f)
+
+def load_json(filename):
+    with open(filename, 'r') as file:
+        return json.load(file)
+
+flags = load_json('flags.json')
+questions = load_json('questions.json')
+truths = load_json('truths.json')
+dares = load_json('dares.json')
+trivia_questions = load_json('trivia_questions.json')
+
 
 bot = commands.Bot(intents=discord.Intents.all())
 
@@ -102,13 +124,14 @@ async def avatar(ctx, user: Option(discord.Member, description='Select a user', 
     
     await ctx.respond(embed=embed)
     
-
 @bot.slash_command(name='kick', description='Kick a user from the server')
 async def kick(ctx, user: Option(discord.Member, description='Select a user')):
     if ctx.author.guild_permissions.ban_members or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         try:
             await user.kick()
             await ctx.respond(f"{user.mention} has been kicked from the server.")
+        except discord.Forbidden:
+            await ctx.respond("I do not have permission to kick this user. Please check the bot's role permissions.")
         except discord.HTTPException as e:
             print(f"Failed to kick user: {e}")
             await ctx.respond("Failed to kick the user. Please try again later.")
@@ -117,7 +140,6 @@ async def kick(ctx, user: Option(discord.Member, description='Select a user')):
 
 @bot.slash_command(name='warn', description='Warn a user for violating server rules')
 async def warn(ctx, user: Option(discord.Member, description='Select a user')):
-    # Check permissions
     if ctx.author.guild_permissions.administrator or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         if user == ctx.author:
             await ctx.respond("You cannot warn yourself.")
@@ -143,11 +165,6 @@ async def warn(ctx, user: Option(discord.Member, description='Select a user')):
     else:
         await ctx.respond("You do not have permission to warn members.")
 
-@bot.command()
-async def say(ctx, *, message: str):
-    await ctx.message.delete()
-    await ctx.send(message)  
-
 @bot.slash_command(name='ban', description='Ban a user from the server')
 async def ban(ctx, user: Option(discord.Member, description='Select a user')):
     if ctx.author.guild_permissions.ban_members or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
@@ -156,8 +173,14 @@ async def ban(ctx, user: Option(discord.Member, description='Select a user')):
         elif user.top_role >= ctx.author.top_role:
             await ctx.respond("You cannot ban this user due to role hierarchy.")
         else:
-            await user.ban()
-            await ctx.respond(f"{user.mention} has been banned from the server.")
+            try:
+                await user.ban()
+                await ctx.respond(f"{user.mention} has been banned from the server.")
+            except discord.Forbidden:
+                await ctx.respond("I do not have permission to ban this user. Please check the bot's role permissions.")
+            except discord.HTTPException as e:
+                print(f"Failed to ban user: {e}")
+                await ctx.respond("Failed to ban the user. Please try again later.")
     else:
         await ctx.respond("You do not have permission to ban members.")
 
@@ -172,18 +195,26 @@ async def mute(ctx, user: Option(discord.Member, description='Select a user')):
                 for channel in ctx.guild.channels:
                     await channel.set_permissions(muted_role, send_messages=False, speak=False)
 
+                await ctx.respond("Muted role created successfully.")
             except discord.Forbidden:
                 await ctx.respond("I do not have permissions to create roles. Please ask an administrator to create a role named 'Muted'.")
                 return
-            except discord.HTTPException:
+            except discord.HTTPException as e:
+                print(f"Failed to create the 'Muted' role: {e}")
                 await ctx.respond("Failed to create the 'Muted' role. Please check server settings or try again later.")
                 return
         
         if muted_role in user.roles:
             await ctx.respond(f"{user.mention} is already muted.")
         else:
-            await user.add_roles(muted_role)
-            await ctx.respond(f"{user.mention} has been muted.")
+            try:
+                await user.add_roles(muted_role)
+                await ctx.respond(f"{user.mention} has been muted.")
+            except discord.Forbidden:
+                await ctx.respond("I do not have permission to mute this user. Please check the bot's role permissions.")
+            except discord.HTTPException as e:
+                print(f"Failed to mute user: {e}")
+                await ctx.respond("Failed to mute the user. Please try again later.")
     else:
         await ctx.respond("You do not have permission to mute members.")
 
@@ -198,8 +229,14 @@ async def unmute(ctx, user: Option(discord.Member, description='Select a user'))
         if muted_role not in user.roles:
             await ctx.respond(f"{user.mention} is not muted.")
         else:
-            await user.remove_roles(muted_role)
-            await ctx.respond(f"{user.mention} has been unmuted.")
+            try:
+                await user.remove_roles(muted_role)
+                await ctx.respond(f"{user.mention} has been unmuted.")
+            except discord.Forbidden:
+                await ctx.respond("I do not have permission to unmute this user. Please check the bot's role permissions.")
+            except discord.HTTPException as e:
+                print(f"Failed to unmute user: {e}")
+                await ctx.respond("Failed to unmute the user. Please try again later.")
     else:
         await ctx.respond("You do not have permission to unmute members.")
 
@@ -212,30 +249,34 @@ async def unban(ctx, user: Option(str, description='User ID to unban')):
             await ctx.respond(f"{user_obj.mention} has been unbanned from the server.")
         except discord.NotFound:
             await ctx.respond("User not found. Please provide a valid User ID.")
+        except discord.Forbidden:
+            await ctx.respond("I do not have permission to unban this user. Please check the bot's role permissions.")
+        except discord.HTTPException as e:
+            print(f"Failed to unban user: {e}")
+            await ctx.respond("Failed to unban the user. Please try again later.")
     else:
         await ctx.respond("You do not have permission to unban members.")
 
 @bot.slash_command(name='clear', description='Clear messages in a chat')
 async def clear(ctx: discord.ApplicationContext, amount_or_all: str):
     if ctx.author.guild_permissions.manage_messages or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
-        if amount_or_all.lower() == 'all':
-            await ctx.channel.purge()
-            await ctx.respond("All messages have been deleted.", delete_after=5)
-        else:
-            try:
+        try:
+            if amount_or_all.lower() == 'all':
+                await ctx.channel.purge()
+                await ctx.respond("All messages have been deleted.", delete_after=5)
+            else:
                 amount = int(amount_or_all)
                 await ctx.channel.purge(limit=amount)
                 await ctx.respond(f"{amount} messages have been deleted.", delete_after=5)
-            except ValueError:
-                await ctx.respond("Invalid command usage. Please provide a number or 'all'.")
+        except ValueError:
+            await ctx.respond("Invalid command usage. Please provide a number or 'all'.")
+        except discord.Forbidden:
+            await ctx.respond("I do not have permission to delete messages. Please check the bot's role permissions.")
+        except discord.HTTPException as e:
+            print(f"Failed to clear messages: {e}")
+            await ctx.respond("Failed to clear messages. Please try again later.")
     else:
         await ctx.respond("You do not have permission to delete messages.")
-
-def load_trivia_questions(filename):
-    with open(filename, 'r') as file:
-        return json.load(file)
-
-trivia_questions = load_trivia_questions('trivia_questions.json')
 
 @bot.slash_command(name='trivia', description='Answer a random trivia question')
 async def trivia(ctx):
@@ -328,13 +369,6 @@ class RPSButtonView(View):
 async def rock_paper_scissors(ctx):
     view = RPSButtonView(ctx, None, None)
     await ctx.respond("Choose Rock, Paper, or Scissors:", view=view)
-
-def load_data(filename):
-    with open(filename, 'r') as file:
-        return json.load(file)
-
-truths = load_data('truths.json')
-dares = load_data('dares.json')
 
 class TruthOrDareButtonView(discord.ui.View):
     def __init__(self, ctx, truths, dares):
@@ -813,12 +847,6 @@ async def flip_coin(ctx: discord.ApplicationContext):
         result = random.choice(['heads', 'tails'])
         await ctx.respond(f'The coin landed on: {result}')
 
-def load_flags():
-    with open('flags.json', 'r') as file:
-        return json.load(file)
-
-flags = load_flags()
-
 class FlagGameView(discord.ui.View):
     def __init__(self, ctx, country):
         super().__init__()
@@ -902,18 +930,6 @@ async def joke(ctx):
 @bot.message_command(name="Get Message ID")
 async def get_message_id(ctx, message: discord.Message):
     await ctx.respond(f"Message ID: `{message.id}`")
-
-DATA_FILE = "clicker_data.json"
-
-if os.path.exists(DATA_FILE):
-    with open(DATA_FILE, "r") as f:
-        click_data = json.load(f)
-else:
-    click_data = {}
-
-def save_data():
-    with open(DATA_FILE, "w") as f:
-        json.dump(click_data, f)
 
 class ClickerButton(Button):
     def __init__(self):
