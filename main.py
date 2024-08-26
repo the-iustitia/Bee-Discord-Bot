@@ -12,6 +12,8 @@ import aiohttp
 import os
 import json
 
+
+print("Work directory:", os.getcwd())
 DATA_FILE = "clicker_data.json"
 
 if os.path.exists(DATA_FILE):
@@ -25,7 +27,8 @@ def save_data():
         json.dump(click_data, f)
 
 def load_json(filename):
-    with open(filename, 'r') as file:
+    path = os.path.join(filename)
+    with open(path, 'r') as file:
         return json.load(file)
 
 flags = load_json('flags.json')
