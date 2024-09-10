@@ -979,7 +979,10 @@ def calculate_hand_value(hand):
     
     return value
 
-@bot.slash_command(name='blackjack', description="Start the game")
+@bot.slash_command(name='blackjack', description="Start the game", IntegrationType = {
+    IntegrationType.user_install,
+    IntegrationType.guild_install
+})
 async def blackjack(ctx, opponent: discord.Member = None):
     await ctx.defer()
     await ctx.followup.send("Game is started")
