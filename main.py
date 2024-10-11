@@ -979,36 +979,58 @@ def calculate_hand_value(hand):
     
     return value
 
-@bot.slash_command(name='blackjack', description="Start the game", IntegrationType = {
-    IntegrationType.user_install,
-    IntegrationType.guild_install
-})
-async def blackjack(ctx, opponent: discord.Member = None):
-    await ctx.defer()
-    await ctx.followup.send("Game is started")
-    if opponent is None:
-        opponent = ctx.author
+def create_deck():
+    suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+    ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+    deck = [{'rank': rank, 'suit': suit} for rank in ranks for suit in suits]
+    return deck
 
+def calculate_hand_value(hand):
+    value = 0
+    aces = 0
+    for card in hand:
+        rank = card['rank']
+        if rank in ['J', 'Q', 'K']:
+            value += 10
+        elif rank == 'A':
+            value += 11
+            aces += 1
+        else:
+            value += int(rank)
+    
+    while value > 21 and aces:
+        value -= 10
+        aces -= 1
+    
+    return value
+
+def hand_to_string(hand):
+    return ', '.join(f"{card['rank']} of {card['suit']}" for card in hand)
+
+@bot.slash_command(name='blackjack', description="Start the game")
+async def blackjack(ctx):
+    await ctx.defer()
+    await ctx.followup.send("Game is started. You're opponent is bot")
+    
     deck = create_deck()
     random.shuffle(deck)
-    
+
     player_hand = [deck.pop(), deck.pop()]
     dealer_hand = [deck.pop(), deck.pop()]
-    
+
     player_value = calculate_hand_value(player_hand)
     dealer_value = calculate_hand_value(dealer_hand)
-    
+
     def hand_to_string(hand):
         return ', '.join(f"{card['rank']} of {card['suit']}" for card in hand)
-    
+
     class BlackjackView(View):
-        def __init__(self, ctx, player_hand, dealer_hand, deck, opponent, *args, **kwargs):
+        def __init__(self, ctx, player_hand, dealer_hand, deck, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.ctx = ctx
             self.player_hand = player_hand
             self.dealer_hand = dealer_hand
             self.deck = deck
-            self.opponent = opponent
             self.player_value = calculate_hand_value(player_hand)
             self.dealer_value = calculate_hand_value(dealer_hand)
             self.finished = False
@@ -1020,51 +1042,43 @@ async def blackjack(ctx, opponent: discord.Member = None):
 
             self.player_hand.append(self.deck.pop())
             self.player_value = calculate_hand_value(self.player_hand)
-            
+
             if self.player_value > 21:
                 self.finished = True
-                await interaction.response.edit_message(content=f"**Your hand:** {hand_to_string(self.player_hand)} (Value: {self.player_value})\n\nYou bust! {self.opponent.mention} wins.", view=None)
+                await interaction.response.edit_message(content=f"**You're hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n\nYou've had too much! Bot wins", view=None)
                 return
-            
-            await interaction.response.edit_message(content=f"**Your hand:** {hand_to_string(self.player_hand)} (Value: {self.player_value})\n\nType `!blackjack {self.opponent.mention}` to continue or use the buttons again.")
+
+            await interaction.response.edit_message(content=f"**You're hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n**Diler hand:** {hand_to_string([self.dealer_hand[0]])} and a hidden card.\n\nChoose an action:", view=self)
 
         @discord.ui.button(label='Stand', style=discord.ButtonStyle.secondary)
         async def stand_button(self, button: Button, interaction: discord.Interaction):
             if self.finished:
                 return
-            
+
             self.finished = True
+            # Дилер должен продолжать ход, пока Sum меньше 17
             while self.dealer_value < 17:
                 self.dealer_hand.append(self.deck.pop())
                 self.dealer_value = calculate_hand_value(self.dealer_hand)
+
+            result_message = f"**You're hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n**Diller hand:** {hand_to_string(self.dealer_hand)} (Sum: {self.dealer_value})\n\n"
             
-            result_message = f"**Your hand:** {hand_to_string(self.player_hand)} (Value: {self.player_value})\n**Dealer's hand:** {hand_to_string(self.dealer_hand)} (Value: {self.dealer_value})\n\n"
-            if self.dealer_value > 21 or self.player_value > self.dealer_value:
-                result_message += f"You win! 🎉"
+            # Проверка условий победы
+            if self.dealer_value > 21:
+                result_message += "Bot have too much! You win! 🎉"
+            elif self.player_value > 21:
+                result_message += "You've had too much! Bot wins!"
+            elif self.player_value > self.dealer_value:
+                result_message += "You win! 🎉"
             elif self.player_value < self.dealer_value:
-                result_message += f"{self.opponent.mention} wins!"
+                result_message += "Bot win!"
             else:
-                result_message += f"It's a tie!"
-            
+                result_message += "Draw!"
+
             await interaction.response.edit_message(content=result_message, view=None)
 
-    view = BlackjackView(ctx, player_hand, dealer_hand, deck, opponent)
-    
-    await ctx.send(f"**Your hand:** {hand_to_string(player_hand)} (Value: {player_value})\n**Dealer's hand:** {hand_to_string([dealer_hand[0]])} and a hidden card.\n\nUse the buttons below to choose your action.", view=view)
+    view = BlackjackView(ctx, player_hand, dealer_hand, deck)
 
-@bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.CommandNotFound):
-        await ctx.send("Command not found.")
-        print(f"Ошибка: Команда не найдена - {ctx.message.content}")
-    elif isinstance(error, commands.MissingPermissions):
-        await ctx.send("You have no premissions.")
-        print(f"Ошибка: Недостаточно прав - {ctx.message.content}")
-    elif isinstance(error, commands.BadArgument):
-        await ctx.send("Incorect argument.")
-        print(f"Ошибка: Неверный аргумент - {ctx.message.content}")
-    else:
-        await ctx.send(f"Error: {error}")
-        print(f"Ошибка: {error} - {ctx.message.content}")
+    await ctx.send(f"**You're hand:** {hand_to_string(player_hand)} (Sum: {player_value})\n**Diler hand:** {hand_to_string([dealer_hand[0]])} and a hidden card.\n\nChoose an action", view=view)
 
 bot.run('')
