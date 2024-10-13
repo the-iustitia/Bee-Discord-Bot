@@ -12,8 +12,6 @@ import aiohttp
 import os
 import json
 
-
-print("Work directory:", os.getcwd())
 DATA_FILE = "clicker_data.json"
 
 if os.path.exists(DATA_FILE):
@@ -31,6 +29,11 @@ def load_json(filename):
     with open(path, 'r') as file:
         return json.load(file)
 
+def load_cars():
+    with open('cars.json', 'r') as file:
+        return json.load(file)
+
+cars = load_cars()
 flags = load_json('flags.json')
 questions = load_json('questions.json')
 truths = load_json('truths.json')
@@ -759,7 +762,7 @@ class MemoryButton(discord.ui.Button):
 class MemoryGameView(discord.ui.View):
     def __init__(self):
         super().__init__()
-        self.board = ['🍎', '🍎', '🍌', '🍌', '🍒', '🍒', '🍇', '🍇', '🍉', '🍉', '🥭', '🥭', '🍓', '🍓', '🍍', '🍍', '🍊', '🍊', '🍋', '🍋']
+        self.board = ['🍎', '🍎', '🍌', '🍌', '🍒', '🍒', '🍇', '🍇', '🍉', '🍉', '🥭', '🥭', '🍓', '🍓', '🍍', '🍍', '🍊', '🍊', '🐝', '🐝']
         
         # Добавление редкого элемента
         if random.randint(1, 1000) == 1:
@@ -865,9 +868,10 @@ class FlagGameView(discord.ui.View):
 
         try:
             msg = await bot.wait_for('message', check=check_answer, timeout=30)
-            answer = msg.content.strip().capitalize()
+            answer = msg.content.strip().lower()
+            correct_answer = self.country.lower()
 
-            if answer == self.country:
+            if answer == correct_answer:
                 if self.country == 'Mamluks':
                     await interaction.followup.send(f"Correct! You guessed the rare flag: {self.country}! 🎉")
                 elif self.country == 'Neverland':
@@ -906,6 +910,57 @@ async def flag_game(ctx):
     embed.set_footer(text="Click the button below to submit your answer.")
 
     await ctx.respond(embed=embed, view=FlagGameView(ctx, country))
+
+
+class CarGameView(discord.ui.View):
+    def __init__(self, ctx, car):
+        super().__init__(timeout=60)
+        self.ctx = ctx
+        self.car = car
+
+    @discord.ui.button(label="Submit Guess", style=discord.ButtonStyle.primary)
+    async def submit_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.send_message("Please type your guess below:")
+
+        def check_answer(message):
+            return message.channel == self.ctx.channel and message.author == interaction.user
+
+        try:
+            msg = await bot.wait_for('message', check=check_answer, timeout=30)
+            answer = msg.content.strip().lower()
+            correct_answer = self.car.lower()
+
+            if answer == correct_answer:
+                if self.car == 'Bugatti':
+                    await interaction.followup.send(f"Correct! You guessed the rare car: {self.car}! 🎉")
+                else:
+                    await interaction.followup.send(f"Correct! {self.car} is the correct answer!")
+            else:
+                await interaction.followup.send(f"Sorry, the correct answer was {self.car}. Better luck next time!")
+        except asyncio.TimeoutError:
+            await interaction.followup.send(f"Time's up! The correct answer was {self.car}.")
+        except Exception as e:
+            await interaction.followup.send(f"An error occurred: {e}")
+
+        self.stop()
+
+@bot.slash_command(name='cargame', description='Play a game to guess the car by its logo')
+async def car_game(ctx):
+    rare_car_chance = 1000
+    car = random.choice(list(cars.keys()))
+    if random.randint(1, rare_car_chance) == 1:
+        car = 'Bugatti'
+    logo_url = cars[car]
+
+    embed = discord.Embed(
+        title="Guess the Car Brand!",
+        description="Can you guess the car brand by its logo?",
+        color=discord.Color.blue()
+    )
+    embed.set_image(url=logo_url)
+    embed.set_footer(text="Click the button below to submit your answer.")
+
+    await ctx.respond(embed=embed, view=CarGameView(ctx, car))
 
 @bot.slash_command(name="joke", description="Sending a random joke", integration_types = {
     IntegrationType.user_install,
@@ -1056,14 +1111,12 @@ async def blackjack(ctx):
                 return
 
             self.finished = True
-            # Дилер должен продолжать ход, пока Sum меньше 17
             while self.dealer_value < 17:
                 self.dealer_hand.append(self.deck.pop())
                 self.dealer_value = calculate_hand_value(self.dealer_hand)
 
             result_message = f"**You're hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n**Diller hand:** {hand_to_string(self.dealer_hand)} (Sum: {self.dealer_value})\n\n"
             
-            # Проверка условий победы
             if self.dealer_value > 21:
                 result_message += "Bot have too much! You win! 🎉"
             elif self.player_value > 21:
