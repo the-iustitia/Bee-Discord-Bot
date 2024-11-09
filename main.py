@@ -2,7 +2,7 @@ from typing import List
 import discord
 from discord.ext import commands,tasks
 from discord import Option, IntegrationType
-from discord.ui import Button, View
+from discord.ui import Modal, InputText, View, Button
 import random
 import requests
 import asyncio
@@ -12,36 +12,18 @@ import aiohttp
 import os
 import json
 
-DATA_FILE = "clicker_data.json"
-
-if os.path.exists(DATA_FILE):
-    with open(DATA_FILE, "r") as f:
-        click_data = json.load(f)
-else:
-    click_data = {}
-
-def save_data():
-    with open(DATA_FILE, "w") as f:
-        json.dump(click_data, f)
-
 def load_json(filename):
     path = os.path.join(filename)
     with open(path, 'r') as file:
         return json.load(file)
-
-def load_cars():
-    with open('cars.json', 'r') as file:
-        return json.load(file)
-
-cars = load_cars()
+    
 flags = load_json('flags.json')
-questions = load_json('questions.json')
 truths = load_json('truths.json')
 dares = load_json('dares.json')
 trivia_questions = load_json('trivia_questions.json')
 
 
-bot = commands.Bot(intents=discord.Intents.all())
+bot = commands.Bot(command_prefix = "!")
 
 SPECIFIC_USER_ID = 1121059810717225030
 
@@ -49,9 +31,27 @@ SPECIFIC_USER_ID = 1121059810717225030
 async def on_ready():
     print('Logged in as {0.user}'.format(bot))
 
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("You don't have permission to use this command.")
+    elif isinstance(error, commands.BotMissingPermissions):
+        await ctx.send("The bot lacks the necessary permissions to execute this command.")
+    elif isinstance(error, commands.CommandNotFound):
+        await ctx.send("Command not found. Please use an existing command.")
+    elif isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"This command is on cooldown. Try again in {round(error.retry_after, 2)} seconds.")
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send("Invalid argument. Please check your input.")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("A required argument is missing.")
+    else:
+        await ctx.send("An error occurred while processing this command. Please try again later.")
+        print(f"Error: {error}")
+
 @bot.slash_command(name='profile', description='Displays user passport information', integration_types = {
-    IntegrationType.user_install,
-    IntegrationType.guild_install
+        IntegrationType.user_install,
+        IntegrationType.guild_install
 })
 async def user_info(ctx, user: Option(discord.Member, description='Select a user', required=False)):
     user = user or ctx.author
@@ -87,7 +87,7 @@ async def server_info(ctx):
     
     await ctx.respond(embed=embed)
 
-@bot.slash_command(name='fun_fact', description='Get a random fun fact', IntegrationType = {
+@bot.slash_command(name='fun_fact', description='Get a random fun fact', integration_types = {
   IntegrationType.guild_install,
   IntegrationType.user_install
 })
@@ -288,50 +288,27 @@ async def clear(ctx: discord.ApplicationContext, amount_or_all: str):
 async def trivia(ctx):
     question_data = random.choice(trivia_questions)
     question = question_data['question']
-    answer = question_data['answer']
-    await ctx.respond(f"Trivia Question: {question}")
+    choices = question_data['choices']
+    correct_answer = question_data['answer']
 
-    def check(msg):
-        return msg.author == ctx.author and msg.channel == ctx.channel
+    buttons = [Button(label=choice, style=discord.ButtonStyle.primary) for choice in choices]
 
-    try:
-        msg = await bot.wait_for('message', timeout=15.0, check=check)
-    except asyncio.TimeoutError:
-        return await ctx.send(f"Sorry, you took too long. The correct answer was {answer}.")
-    except Exception as e:
-        return await ctx.send(f"An unexpected error occurred: {str(e)}")
-
-    if msg.content.lower() == answer.lower():
-        await ctx.send("Correct! 🎉")
-    else:
-        await ctx.send(f"Wrong answer. The correct answer was {answer}.")
-
-@bot.slash_command(name='guess', description='Guess a number between 1 and 100')
-async def guess_number(ctx):
-    number = random.randint(1, 100)
-    await ctx.respond("I'm thinking of a number between 1 and 100. Can you guess what it is?")
-
-    def check(msg):
-        return msg.author == ctx.author and msg.channel == ctx.channel
-
-    for attempt in range(5):
-        try:
-            msg = await bot.wait_for('message', timeout=15.0, check=check)
-        except asyncio.TimeoutError:
-            return await ctx.send(f"Sorry, you took too long. The correct number was {number}.")
-
-        guess = int(msg.content)
-        
-        if guess == number:
-            return await ctx.send("Correct! 🎉 You guessed the number!")
-        elif guess < number:
-            await ctx.send("Too low! Try again.")
+    async def button_callback(interaction: discord.Interaction):
+        selected_answer = interaction.data['custom_id']
+        if selected_answer == correct_answer:
+            await interaction.response.send_message("Correct! 🎉", ephemeral=True)
         else:
-            await ctx.send("Too high! Try again.")
+            await interaction.response.send_message(f"Wrong answer. The correct answer was {correct_answer}.", ephemeral=True)
 
-    await ctx.send(f"Sorry, you've used all your attempts. The correct number was {number}.")
+    view = View()
+    for button, choice in zip(buttons, choices):
+        button.custom_id = choice
+        button.callback = button_callback
+        view.add_item(button)
 
-class RPSButtonView(View):
+    await ctx.respond(f"Trivia Question: {question}", view=view)
+
+class RPSButtonView(discord.ui.View):
     def __init__(self, ctx, user_choice, bot_choice):
         super().__init__(timeout=15)
         self.ctx = ctx
@@ -369,12 +346,15 @@ class RPSButtonView(View):
         await interaction.response.edit_message(content=f"You chose {user_choice}, I chose {bot_choice}. {result}", view=None)
 
 @bot.slash_command(name='rps', description='Play Rock-Paper-Scissors', integration_types = {
-    IntegrationType.user_install,
-    IntegrationType.guild_install
-  })
+        IntegrationType.user_install,
+        IntegrationType.guild_install
+})
 async def rock_paper_scissors(ctx):
-    view = RPSButtonView(ctx, None, None)
-    await ctx.respond("Choose Rock, Paper, or Scissors:", view=view)
+    try:
+        view = RPSButtonView(ctx, None, None)
+        await ctx.respond("Choose Rock, Paper, or Scissors:", view=view)
+    except Exception as e:
+        await ctx.send(f"An error occurred: {str(e)}")
 
 class TruthOrDareButtonView(discord.ui.View):
     def __init__(self, ctx, truths, dares):
@@ -400,7 +380,10 @@ class TruthOrDareButtonView(discord.ui.View):
         dare = random.choice(self.dares)
         await interaction.response.edit_message(content=f"Dare: {dare}")
 
-@bot.slash_command(name='truth_or_dare', description='Play a game of Truth or Dare')
+@bot.slash_command(name='truth_or_dare', description='Play a game of Truth or Dare', integration_types = {
+    IntegrationType.user_install,
+    IntegrationType.guild_install
+})
 async def truth_or_dare(ctx):
     view = TruthOrDareButtonView(ctx, truths, dares)
     await ctx.respond("Truth or Dare? Click a button to choose.", view=view)
@@ -673,7 +656,10 @@ class TicTacToeView(discord.ui.View):
         await interaction.edit_original_response(content=content, view=self)
 
 @bot.slash_command(
-    name='tic_tac_toe', description='Play a game of Tic-Tac-Toe')
+    name='tic_tac_toe', description='Play a game of Tic-Tac-Toe', integration_types = {
+        IntegrationType.user_install,
+        IntegrationType.guild_install
+    })
 async def tic_tac_toe(
     ctx, 
     opponent: Option(str, "Choose your opponent", choices=["bot", "player"]),
@@ -687,7 +673,10 @@ def load_questions():
 
 questions = load_questions()
 
-@bot.slash_command(name='wyr', description='Play a game of Would You Rather')
+@bot.slash_command(name='wyr', description='Play a game of Would You Rather', integration_types = {
+    IntegrationType.user_install,
+    IntegrationType.guild_install
+})
 async def would_you_rather(ctx):
     question_data = random.choice(questions)
     question = question_data['question']
@@ -764,7 +753,6 @@ class MemoryGameView(discord.ui.View):
         super().__init__()
         self.board = ['🍎', '🍎', '🍌', '🍌', '🍒', '🍒', '🍇', '🍇', '🍉', '🍉', '🥭', '🥭', '🍓', '🍓', '🍍', '🍍', '🍊', '🍊', '🐝', '🐝']
         
-        # Добавление редкого элемента
         if random.randint(1, 1000) == 1:
             self.board.append('🎉')
             self.board.append('🎉')
@@ -777,7 +765,7 @@ class MemoryGameView(discord.ui.View):
         for i, label in enumerate(self.board):
             self.add_item(MemoryButton(label, i // 4, i % 5))
 
-@bot.slash_command(name='memory_game', description='Play a memory game', IntegrationType ={
+@bot.slash_command(name='memory_game', description='Play a memory game', integration_types ={
     IntegrationType.user_install,
     IntegrationType.guild_install
 })
@@ -853,53 +841,41 @@ async def flip_coin(ctx: discord.ApplicationContext):
         result = random.choice(['heads', 'tails'])
         await ctx.respond(f'The coin landed on: {result}')
 
-class FlagGameView(discord.ui.View):
-    def __init__(self, ctx, country):
+with open('flags.json', 'r') as f:
+    flags = json.load(f)
+
+class GuessAnswerModal(Modal):
+    def __init__(self, answer):
+        super().__init__(title="Submit Your Guess")
+        self.answer = answer.lower()
+
+        # Поле ввода для ответа
+        self.answer_input = InputText(label="Enter your answer", placeholder="Type your guess here")
+        self.add_item(self.answer_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        user_answer = self.answer_input.value.strip().lower()
+
+        # Проверка правильности ответа
+        if user_answer == self.answer:
+            await interaction.response.send_message(f"Correct! {self.answer.capitalize()} is the correct answer! 🎉", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"Sorry, the correct answer was {self.answer.capitalize()}. Better luck next time!", ephemeral=True)
+
+class GuessGameView(View):
+    def __init__(self, answer):
         super().__init__()
-        self.ctx = ctx
-        self.country = country
+        self.answer = answer
 
-    @discord.ui.button(label="Submit Answer", style=discord.ButtonStyle.primary)
-    async def submit_answer(self, button: discord.ui.Button, interaction: discord.Interaction):
-        await interaction.response.send_message("Please type your answer below:")
-
-        def check_answer(message):
-            return message.channel == self.ctx.channel and message.author == interaction.user
-
-        try:
-            msg = await bot.wait_for('message', check=check_answer, timeout=30)
-            answer = msg.content.strip().lower()
-            correct_answer = self.country.lower()
-
-            if answer == correct_answer:
-                if self.country == 'Mamluks':
-                    await interaction.followup.send(f"Correct! You guessed the rare flag: {self.country}! 🎉")
-                elif self.country == 'Neverland':
-                    await interaction.followup.send(f"Correct! {self.country} is the correct answer! 🎉 You discovered the secret land!")
-                else:
-                    await interaction.followup.send(f"Correct! {self.country} is the correct answer!")
-            else:
-                if self.country == 'Mamluks':
-                    await interaction.followup.send("Sorry, your guess is incorrect.")
-                else:
-                    await interaction.followup.send(f"Sorry, the correct answer was {self.country}. Better luck next time!")
-        except asyncio.TimeoutError:
-            if self.country == 'Mamluks':
-                await interaction.followup.send("Time's up! Your guess was not correct.")
-            else:
-                await interaction.followup.send(f"Time's up! The correct answer was {self.country}.")
-        except Exception as e:
-            await interaction.followup.send(f"An error occurred: {e}")
-
-        self.stop()
+    @discord.ui.button(label="Answer", style=discord.ButtonStyle.primary)
+    async def submit_button(self, button: Button, interaction: discord.Interaction):
+        await interaction.response.send_modal(GuessAnswerModal(answer=self.answer))
 
 @bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag')
 async def flag_game(ctx):
-    rare_flag_chance = 1000
     country = random.choice(list(flags.keys()))
-    if random.randint(1, rare_flag_chance) == 1:
-        country = 'Mamluks'
-    flag_url = flags[country]
+    
+    flag_url = flags.get(country, "https://default_flag_image_link")
 
     embed = discord.Embed(
         title="Guess the Country!",
@@ -909,58 +885,8 @@ async def flag_game(ctx):
     embed.set_image(url=flag_url)
     embed.set_footer(text="Click the button below to submit your answer.")
 
-    await ctx.respond(embed=embed, view=FlagGameView(ctx, country))
+    await ctx.respond(embed=embed, view=GuessGameView(answer=country))
 
-
-class CarGameView(discord.ui.View):
-    def __init__(self, ctx, car):
-        super().__init__(timeout=60)
-        self.ctx = ctx
-        self.car = car
-
-    @discord.ui.button(label="Submit Guess", style=discord.ButtonStyle.primary)
-    async def submit_button(self, button: discord.ui.Button, interaction: discord.Interaction):
-        await interaction.response.send_message("Please type your guess below:")
-
-        def check_answer(message):
-            return message.channel == self.ctx.channel and message.author == interaction.user
-
-        try:
-            msg = await bot.wait_for('message', check=check_answer, timeout=30)
-            answer = msg.content.strip().lower()
-            correct_answer = self.car.lower()
-
-            if answer == correct_answer:
-                if self.car == 'Bugatti':
-                    await interaction.followup.send(f"Correct! You guessed the rare car: {self.car}! 🎉")
-                else:
-                    await interaction.followup.send(f"Correct! {self.car} is the correct answer!")
-            else:
-                await interaction.followup.send(f"Sorry, the correct answer was {self.car}. Better luck next time!")
-        except asyncio.TimeoutError:
-            await interaction.followup.send(f"Time's up! The correct answer was {self.car}.")
-        except Exception as e:
-            await interaction.followup.send(f"An error occurred: {e}")
-
-        self.stop()
-
-@bot.slash_command(name='cargame', description='Play a game to guess the car by its logo')
-async def car_game(ctx):
-    rare_car_chance = 1000
-    car = random.choice(list(cars.keys()))
-    if random.randint(1, rare_car_chance) == 1:
-        car = 'Bugatti'
-    logo_url = cars[car]
-
-    embed = discord.Embed(
-        title="Guess the Car Brand!",
-        description="Can you guess the car brand by its logo?",
-        color=discord.Color.blue()
-    )
-    embed.set_image(url=logo_url)
-    embed.set_footer(text="Click the button below to submit your answer.")
-
-    await ctx.respond(embed=embed, view=CarGameView(ctx, car))
 
 @bot.slash_command(name="joke", description="Sending a random joke", integration_types = {
     IntegrationType.user_install,
@@ -988,34 +914,6 @@ async def joke(ctx):
 @bot.message_command(name="Get Message ID")
 async def get_message_id(ctx, message: discord.Message):
     await ctx.respond(f"Message ID: `{message.id}`")
-
-class ClickerButton(Button):
-    def __init__(self):
-        super().__init__(label="Click me!", style=discord.ButtonStyle.primary)
-
-    async def callback(self, interaction: discord.Interaction):
-        user_id = str(interaction.user.id)
-        if user_id not in click_data:
-            click_data[user_id] = 0
-        click_data[user_id] += 1
-        save_data()
-        
-        await interaction.response.edit_message(content=f"You clicked the button {click_data[user_id]} times!")
-
-class ClickerView(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        self.add_item(ClickerButton())
-
-@bot.slash_command(name="clicker", description="Start the clicker game")
-async def clicker(ctx: discord.ApplicationContext):
-    await ctx.respond("Click the button!", view=ClickerView())
-
-@bot.slash_command(name="check_clicks", description="Check your total clicks")
-async def check_clicks(ctx: discord.ApplicationContext):
-    user_id = str(ctx.author.id)
-    clicks = click_data.get(user_id, 0)
-    await ctx.respond(f"You have clicked the button {clicks} times!")
 
 suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
 ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
@@ -1062,76 +960,82 @@ def calculate_hand_value(hand):
 def hand_to_string(hand):
     return ', '.join(f"{card['rank']} of {card['suit']}" for card in hand)
 
-@bot.slash_command(name='blackjack', description="Start the game")
+@bot.slash_command(name='blackjack', description="Start the game", integration_types = {
+    IntegrationType.user_install,
+    IntegrationType.guild_install
+})
 async def blackjack(ctx):
-    await ctx.defer()
-    await ctx.followup.send("Game is started. You're opponent is bot")
-    
-    deck = create_deck()
-    random.shuffle(deck)
+    try:
+        await ctx.defer()
+        await ctx.followup.send("Game is started. Your opponent is the bot.")
+        
+        deck = create_deck()
+        random.shuffle(deck)
 
-    player_hand = [deck.pop(), deck.pop()]
-    dealer_hand = [deck.pop(), deck.pop()]
+        player_hand = [deck.pop(), deck.pop()]
+        dealer_hand = [deck.pop(), deck.pop()]
 
-    player_value = calculate_hand_value(player_hand)
-    dealer_value = calculate_hand_value(dealer_hand)
+        player_value = calculate_hand_value(player_hand)
+        dealer_value = calculate_hand_value(dealer_hand)
 
-    def hand_to_string(hand):
-        return ', '.join(f"{card['rank']} of {card['suit']}" for card in hand)
+        def hand_to_string(hand):
+            return ', '.join(f"{card['rank']} of {card['suit']}" for card in hand)
 
-    class BlackjackView(View):
-        def __init__(self, ctx, player_hand, dealer_hand, deck, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.ctx = ctx
-            self.player_hand = player_hand
-            self.dealer_hand = dealer_hand
-            self.deck = deck
-            self.player_value = calculate_hand_value(player_hand)
-            self.dealer_value = calculate_hand_value(dealer_hand)
-            self.finished = False
+        class BlackjackView(View):
+            def __init__(self, ctx, player_hand, dealer_hand, deck, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.ctx = ctx
+                self.player_hand = player_hand
+                self.dealer_hand = dealer_hand
+                self.deck = deck
+                self.player_value = calculate_hand_value(player_hand)
+                self.dealer_value = calculate_hand_value(dealer_hand)
+                self.finished = False
 
-        @discord.ui.button(label='Hit', style=discord.ButtonStyle.primary)
-        async def hit_button(self, button: Button, interaction: discord.Interaction):
-            if self.finished:
-                return
+            @discord.ui.button(label='Hit', style=discord.ButtonStyle.primary)
+            async def hit_button(self, button: Button, interaction: discord.Interaction):
+                if self.finished:
+                    return
 
-            self.player_hand.append(self.deck.pop())
-            self.player_value = calculate_hand_value(self.player_hand)
+                self.player_hand.append(self.deck.pop())
+                self.player_value = calculate_hand_value(self.player_hand)
 
-            if self.player_value > 21:
+                if self.player_value > 21:
+                    self.finished = True
+                    await interaction.response.edit_message(content=f"**Your hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n\nYou've gone over 21! Bot wins.", view=None)
+                    return
+
+                await interaction.response.edit_message(content=f"**Your hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n**Dealer's hand:** {hand_to_string([self.dealer_hand[0]])} and a hidden card.\n\nChoose an action:", view=self)
+
+            @discord.ui.button(label='Stand', style=discord.ButtonStyle.secondary)
+            async def stand_button(self, button: Button, interaction: discord.Interaction):
+                if self.finished:
+                    return
+
                 self.finished = True
-                await interaction.response.edit_message(content=f"**You're hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n\nYou've had too much! Bot wins", view=None)
-                return
+                while self.dealer_value < 17:
+                    self.dealer_hand.append(self.deck.pop())
+                    self.dealer_value = calculate_hand_value(self.dealer_hand)
 
-            await interaction.response.edit_message(content=f"**You're hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n**Diler hand:** {hand_to_string([self.dealer_hand[0]])} and a hidden card.\n\nChoose an action:", view=self)
+                result_message = f"**Your hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n**Dealer's hand:** {hand_to_string(self.dealer_hand)} (Sum: {self.dealer_value})\n\n"
+                
+                if self.dealer_value > 21:
+                    result_message += "Dealer went over 21! You win! 🎉"
+                elif self.player_value > 21:
+                    result_message += "You went over 21! Dealer wins!"
+                elif self.player_value > self.dealer_value:
+                    result_message += "You win! 🎉"
+                elif self.player_value < self.dealer_value:
+                    result_message += "Dealer wins!"
+                else:
+                    result_message += "It's a draw!"
 
-        @discord.ui.button(label='Stand', style=discord.ButtonStyle.secondary)
-        async def stand_button(self, button: Button, interaction: discord.Interaction):
-            if self.finished:
-                return
+                await interaction.response.edit_message(content=result_message, view=None)
 
-            self.finished = True
-            while self.dealer_value < 17:
-                self.dealer_hand.append(self.deck.pop())
-                self.dealer_value = calculate_hand_value(self.dealer_hand)
+        view = BlackjackView(ctx, player_hand, dealer_hand, deck)
 
-            result_message = f"**You're hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n**Diller hand:** {hand_to_string(self.dealer_hand)} (Sum: {self.dealer_value})\n\n"
-            
-            if self.dealer_value > 21:
-                result_message += "Bot have too much! You win! 🎉"
-            elif self.player_value > 21:
-                result_message += "You've had too much! Bot wins!"
-            elif self.player_value > self.dealer_value:
-                result_message += "You win! 🎉"
-            elif self.player_value < self.dealer_value:
-                result_message += "Bot win!"
-            else:
-                result_message += "Draw!"
-
-            await interaction.response.edit_message(content=result_message, view=None)
-
-    view = BlackjackView(ctx, player_hand, dealer_hand, deck)
-
-    await ctx.send(f"**You're hand:** {hand_to_string(player_hand)} (Sum: {player_value})\n**Diler hand:** {hand_to_string([dealer_hand[0]])} and a hidden card.\n\nChoose an action", view=view)
+        await ctx.send(f"**Your hand:** {hand_to_string(player_hand)} (Sum: {player_value})\n**Dealer's hand:** {hand_to_string([dealer_hand[0]])} and a hidden card.\n\nChoose an action", view=view)
+    except Exception as e:
+        await ctx.send(f"An error occurred: {str(e)}")
 
 bot.run('')
