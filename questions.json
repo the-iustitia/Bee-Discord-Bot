@@ -33,5 +33,400 @@
         "question": "Would you rather be famous or rich?",
         "option1": "famous",
         "option2": "rich"
+    },
+    {
+        "question": "Would you rather live in the mountains or at the beach?",
+        "option1": "mountains",
+        "option2": "beach"
+    },
+    {
+        "question": "Would you rather be able to teleport anywhere or be able to read minds?",
+        "option1": "teleport",
+        "option2": "read minds"
+    },
+    {
+        "question": "Would you rather have a rewind button or a pause button on your life?",
+        "option1": "rewind",
+        "option2": "pause"
+    },
+    {
+        "question": "Would you rather live without the internet or live without air conditioning?",
+        "option1": "internet",
+        "option2": "air conditioning"
+    },
+    {
+        "question": "Would you rather be able to see the future or change the past?",
+        "option1": "see the future",
+        "option2": "change the past"
+    },
+    {
+        "question": "Would you rather be a master of every musical instrument or be fluent in every language?",
+        "option1": "musical instrument",
+        "option2": "language"
+    },
+    {
+        "question": "Would you rather always be 10 minutes late or always be 20 minutes early?",
+        "option1": "10 minutes late",
+        "option2": "20 minutes early"
+    },
+    {
+        "question": "Would you rather have unlimited sushi for life or unlimited tacos for life?",
+        "option1": "sushi",
+        "option2": "tacos"
+    },
+    {
+        "question": "Would you rather live in a world where there are no problems or live in a world where you rule?",
+        "option1": "no problems",
+        "option2": "rule"
+    },
+    {
+        "question": "Would you rather be the funniest person in the room or the most intelligent?",
+        "option1": "funniest",
+        "option2": "most intelligent"
+    },
+    {
+        "question": "Would you rather have the ability to be invisible whenever you want or have the ability to fly?",
+        "option1": "invisible",
+        "option2": "fly"
+    },
+    {
+        "question": "Would you rather have unlimited respect or unlimited power?",
+        "option1": "respect",
+        "option2": "power"
+    },
+    {
+        "question": "Would you rather have the ability to breathe underwater or the ability to walk through walls?",
+        "option1": "breathe underwater",
+        "option2": "walk through walls"
+    },
+    {
+        "question": "Would you rather be able to control fire or water?",
+        "option1": "control fire",
+        "option2": "control water"
+    },
+    {
+        "question": "Would you rather always know when someone is lying or always get away with lying?",
+        "option1": "know when someone is lying",
+        "option2": "get away with lying"
+    },
+    {
+        "question": "Would you rather never age physically or never age mentally?",
+        "option1": "never age physically",
+        "option2": "never age mentally"
+    },
+    {
+        "question": "Would you rather have unlimited first-class flights or never have to pay for food at restaurants?",
+        "option1": "first-class flights",
+        "option2": "never pay for food"
+    },
+    {
+        "question": "Would you rather have a photographic memory or be able to forget anything at will?",
+        "option1": "photographic memory",
+        "option2": "forget anything"
+    },
+    {
+        "question": "Would you rather be able to visit any fictional world or be able to bring any fictional character to the real world?",
+        "option1": "visit any fictional world",
+        "option2": "bring any fictional character"
+    },
+    {
+        "question": "Would you rather have the ability to time travel or the ability to teleport?",
+        "option1": "time travel",
+        "option2": "teleport"
+    },
+    {
+        "question": "Would you rather live in a world without music or a world without movies?",
+        "option1": "no music",
+        "option2": "no movies"
+    },
+    {
+        "question": "Would you rather be the best player on a losing team or the worst player on a winning team?",
+        "option1": "best player",
+        "option2": "worst player"
+    },
+    {
+        "question": "Would you rather always have to tell the truth or always have to lie?",
+        "option1": "tell the truth",
+        "option2": "always lie"
+    },
+    {
+        "question": "Would you rather live without your phone or live without your computer?",
+        "option1": "without phone",
+        "option2": "without computer"
+    },
+    {
+        "question": "Would you rather be stuck on a broken ski lift or a broken elevator?",
+        "option1": "ski lift",
+        "option2": "elevator"
+    },
+    {
+        "question": "Would you rather have a rewind button for your life or a pause button?",
+        "option1": "rewind button",
+        "option2": "pause button"
+    },
+    {
+        "question": "Would you rather be feared by all or loved by all?",
+        "option1": "feared by all",
+        "option2": "loved by all"
+    },
+    {
+        "question": "Would you rather have free Wi-Fi wherever you go or have free coffee whenever you want?",
+        "option1": "free Wi-Fi",
+        "option2": "free coffee"
+    },
+    {
+        "question": "Would you rather be able to change the past or see into the future?",
+        "option1": "change the past",
+        "option2": "see the future"
+    },
+    {
+        "question": "Would you rather be an unknown superhero or a famous villain?",
+        "option1": "unknown superhero",
+        "option2": "famous villain"
+    },
+    {
+        "question": "Would you rather be the only person in the world to have superpowers or be the most famous person in the world?",
+        "option1": "superpowers",
+        "option2": "famous"
+    },
+    {
+        "question": "Would you rather always be 10 minutes late or always be 20 minutes early?",
+        "option1": "10 minutes late",
+        "option2": "20 minutes early"
+    },
+    {
+        "question": "Would you rather never be able to use a search engine or never use social media again?",
+        "option1": "no search engine",
+        "option2": "no social media"
+    },
+    {
+        "question": "Would you rather be an amazing dancer or an amazing singer?",
+        "option1": "dancer",
+        "option2": "singer"
+    },
+    {
+        "question": "Would you rather be able to speak every language or be able to play every instrument?",
+        "option1": "speak every language",
+        "option2": "play every instrument"
+    },
+    {
+        "question": "Would you rather have the ability to know what everyone is thinking or be able to manipulate time?",
+        "option1": "know what everyone is thinking",
+        "option2": "manipulate time"
+    },
+    {
+        "question": "Would you rather have more friends or more money?",
+        "option1": "more friends",
+        "option2": "more money"
+    },
+    {
+        "question": "Would you rather always have bad breath or always have a bad haircut?",
+        "option1": "bad breath",
+        "option2": "bad haircut"
+    },
+    {
+        "question": "Would you rather never be able to drink water again or never be able to eat food again?",
+        "option1": "no water",
+        "option2": "no food"
+    },
+    {
+        "question": "Would you rather always be stuck in traffic or always have a slow internet connection?",
+        "option1": "stuck in traffic",
+        "option2": "slow internet"
+    },
+    {
+        "question": "Would you rather always have to sing instead of speaking or dance everywhere you go?",
+        "option1": "sing",
+        "option2": "dance"
+    },
+    {
+        "question": "Would you rather be able to grow plants instantly or heal any injury instantly?",
+        "option1": "grow plants",
+        "option2": "heal injury"
+    },
+    {
+        "question": "Would you rather have a personal chef or a personal chauffeur?",
+        "option1": "chef",
+        "option2": "chauffeur"
+    },
+    {
+        "question": "Would you rather explore outer space or the depths of the ocean?",
+        "option1": "outer space",
+        "option2": "depths of the ocean"
+    },
+    {
+        "question": "Would you rather have the power to heal others or the power to teleport?",
+        "option1": "heal others",
+        "option2": "teleport"
+    },
+    {
+        "question": "Would you rather have a pet dragon or a pet unicorn?",
+        "option1": "dragon",
+        "option2": "unicorn"
+    },
+    {
+        "question": "Would you rather be able to breathe in space or be able to breathe underwater?",
+        "option1": "breathe in space",
+        "option2": "breathe underwater"
+    },
+    {
+        "question": "Would you rather have super strength or super intelligence?",
+        "option1": "super strength",
+        "option2": "super intelligence"
+    },
+    {
+        "question": "Would you rather live in a house made of chocolate or a house made of candy?",
+        "option1": "chocolate",
+        "option2": "candy"
+    },
+    {
+        "question": "Would you rather never have to sleep or never have to eat?",
+        "option1": "never sleep",
+        "option2": "never eat"
+    },
+    {
+        "question": "Would you rather be able to control the weather or control time?",
+        "option1": "control weather",
+        "option2": "control time"
+    },
+    {
+        "question": "Would you rather have a million dollars now or a penny that doubles every day for a month?",
+        "option1": "million dollars",
+        "option2": "penny that doubles"
+    },
+    {
+        "question": "Would you rather live in a world where everyone always tells the truth or a world where everyone always lies?",
+        "option1": "always truth",
+        "option2": "always lies"
+    },
+    {
+        "question": "Would you rather be famous for your talent or famous for your personality?",
+        "option1": "talent",
+        "option2": "personality"
+    },
+    {
+        "question": "Would you rather never get sick or never be tired?",
+        "option1": "never get sick",
+        "option2": "never be tired"
+    },
+    {
+        "question": "Would you rather have a large group of friends or a few close friends?",
+        "option1": "large group",
+        "option2": "few close friends"
+    },
+    {
+        "question": "Would you rather have your dream job but live in a small town or have a mediocre job but live in a big city?",
+        "option1": "dream job in small town",
+        "option2": "mediocre job in big city"
+    },
+    {
+        "question": "Would you rather always have a full phone battery or always have a full tank of gas?",
+        "option1": "full phone battery",
+        "option2": "full tank of gas"
+    },
+    {
+        "question": "Would you rather have the ability to communicate with animals or the ability to talk to plants?",
+        "option1": "communicate with animals",
+        "option2": "talk to plants"
+    },
+    {
+        "question": "Would you rather have a magical wardrobe that always gives you the perfect outfit or a magical fridge that always has your favorite food?",
+        "option1": "magical wardrobe",
+        "option2": "magical fridge"
+    },
+    {
+        "question": "Would you rather be able to speak every language fluently or be able to play every musical instrument perfectly?",
+        "option1": "speak every language",
+        "option2": "play every instrument"
+    },
+    {
+        "question": "Would you rather always win at board games or always win at video games?",
+        "option1": "board games",
+        "option2": "video games"
+    },
+    {
+        "question": "Would you rather have a personal assistant or a personal trainer?",
+        "option1": "assistant",
+        "option2": "trainer"
+    },
+    {
+        "question": "Would you rather be a famous actor or a famous musician?",
+        "option1": "actor",
+        "option2": "musician"
+    },
+    {
+        "question": "Would you rather be able to travel the world for free or have free meals at any restaurant?",
+        "option1": "travel for free",
+        "option2": "free meals"
+    },
+    {
+        "question": "Would you rather have a pet that can talk or a pet that can do tricks?",
+        "option1": "talking pet",
+        "option2": "tricks pet"
+    },
+    {
+        "question": "Would you rather live without air conditioning or live without heating?",
+        "option1": "without air conditioning",
+        "option2": "without heating"
+    },
+    {
+        "question": "Would you rather be able to teleport anywhere or be able to read minds?",
+        "option1": "teleport",
+        "option2": "read minds"
+    },
+    {
+        "question": "Would you rather have a new car every year or a new house every five years?",
+        "option1": "new car every year",
+        "option2": "new house every five years"
+    },
+    {
+        "question": "Would you rather be able to control animals with your mind or be able to control electronics with your mind?",
+        "option1": "control animals",
+        "option2": "control electronics"
+    },
+    {
+        "question": "Would you rather be a hero in a movie or a villain in a movie?",
+        "option1": "hero",
+        "option2": "villain"
+    },
+    {
+        "question": "Would you rather have a never-ending supply of your favorite food or an unlimited supply of your favorite drink?",
+        "option1": "favorite food",
+        "option2": "favorite drink"
+    },
+    {
+        "question": "Would you rather live in a world where everyone is always happy or a world where everyone is always kind?",
+        "option1": "always happy",
+        "option2": "always kind"
+    },
+    {
+        "question": "Would you rather have super speed or super agility?",
+        "option1": "super speed",
+        "option2": "super agility"
+    },
+    {
+        "question": "Would you rather be able to see ghosts or be able to hear thoughts?",
+        "option1": "see ghosts",
+        "option2": "hear thoughts"
+    },
+    {
+        "question": "Would you rather be able to control your dreams or be able to control your reality?",
+        "option1": "control dreams",
+        "option2": "control reality"
+    },
+    {
+        "question": "Would you rather have a permanent vacation or a permanent job you love?",
+        "option1": "vacation",
+        "option2": "job you love"
+    },
+    {
+        "question": "Would you rather be a time traveler or a space traveler?",
+        "option1": "time traveler",
+        "option2": "space traveler"
+    },
+    {
+        "question": "Would you rather have a perfect memory or be able to forget any unpleasant memory at will?",
+        "option1": "perfect memory",
+        "option2": "forget unpleasant memories"
     }
 ]
