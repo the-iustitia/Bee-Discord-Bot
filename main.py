@@ -31,24 +31,6 @@ SPECIFIC_USER_ID = 1121059810717225030
 async def on_ready():
     print('Logged in as {0.user}'.format(bot))
 
-@bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send("You don't have permission to use this command.")
-    elif isinstance(error, commands.BotMissingPermissions):
-        await ctx.send("The bot lacks the necessary permissions to execute this command.")
-    elif isinstance(error, commands.CommandNotFound):
-        await ctx.send("Command not found. Please use an existing command.")
-    elif isinstance(error, commands.CommandOnCooldown):
-        await ctx.send(f"This command is on cooldown. Try again in {round(error.retry_after, 2)} seconds.")
-    elif isinstance(error, commands.BadArgument):
-        await ctx.send("Invalid argument. Please check your input.")
-    elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("A required argument is missing.")
-    else:
-        await ctx.send("An error occurred while processing this command. Please try again later.")
-        print(f"Error: {error}")
-
 @bot.slash_command(name='profile', description='Displays user passport information', integration_types = {
         IntegrationType.user_install,
         IntegrationType.guild_install
@@ -849,14 +831,12 @@ class GuessAnswerModal(Modal):
         super().__init__(title="Submit Your Guess")
         self.answer = answer.lower()
 
-        # Поле ввода для ответа
         self.answer_input = InputText(label="Enter your answer", placeholder="Type your guess here")
         self.add_item(self.answer_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         user_answer = self.answer_input.value.strip().lower()
 
-        # Проверка правильности ответа
         if user_answer == self.answer:
             await interaction.response.send_message(f"Correct! {self.answer.capitalize()} is the correct answer! 🎉", ephemeral=True)
         else:
@@ -871,7 +851,10 @@ class GuessGameView(View):
     async def submit_button(self, button: Button, interaction: discord.Interaction):
         await interaction.response.send_modal(GuessAnswerModal(answer=self.answer))
 
-@bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag')
+@bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag', integration_types = {
+    IntegrationType.user_install,
+    IntegrationType.guild_install
+})
 async def flag_game(ctx):
     country = random.choice(list(flags.keys()))
     
