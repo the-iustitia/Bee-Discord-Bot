@@ -13,18 +13,19 @@ import os
 import json
 
 def load_json(filename):
-    path = os.path.join(filename)
-    with open(path, 'r') as file:
+    path = os.path.join('Json', filename)
+    with open(path, 'r', encoding='utf-8') as file:
         return json.load(file)
     
+flags = load_json('flags.json')
+game_data = load_json('sherlock_game.json')    
 flags = load_json('flags.json')
 truths = load_json('truths.json')
 dares = load_json('dares.json')
 trivia_questions = load_json('trivia_questions.json')
-
+questions = load_json("questions.json")
 
 bot = commands.Bot(command_prefix = "!")
-
 SPECIFIC_USER_ID = 1121059810717225030
 
 @bot.event
@@ -649,12 +650,6 @@ async def tic_tac_toe(
 ):
     await ctx.respond(f"Tic Tac Toe: X goes first. Difficulty: {difficulty}", view=TicTacToeView(opponent, difficulty))
 
-def load_questions():
-    with open('questions.json', 'r') as file:
-        return json.load(file)
-
-questions = load_questions()
-
 @bot.slash_command(name='wyr', description='Play a game of Would You Rather', integration_types = {
     IntegrationType.user_install,
     IntegrationType.guild_install
@@ -822,9 +817,6 @@ async def flip_coin(ctx: discord.ApplicationContext):
     else:
         result = random.choice(['heads', 'tails'])
         await ctx.respond(f'The coin landed on: {result}')
-
-with open('flags.json', 'r') as f:
-    flags = json.load(f)
 
 class GuessAnswerModal(Modal):
     def __init__(self, answer):
@@ -1020,5 +1012,36 @@ async def blackjack(ctx):
         await ctx.send(f"**Your hand:** {hand_to_string(player_hand)} (Sum: {player_value})\n**Dealer's hand:** {hand_to_string([dealer_hand[0]])} and a hidden card.\n\nChoose an action", view=view)
     except Exception as e:
         await ctx.send(f"An error occurred: {str(e)}")
+
+class SherlockGameView(View):
+    def __init__(self, story, options, next_choices, interaction):
+        super().__init__(timeout=60)
+        self.story = story
+        self.options = options
+        self.next_choices = next_choices
+        self.interaction = interaction
+
+        for i, option in enumerate(options):
+            button = Button(label=option, custom_id=str(i+1), style=discord.ButtonStyle.primary)
+            button.callback = self.button_callback
+            self.add_item(button)
+
+    async def button_callback(self, interaction: discord.Interaction):
+        choice = int(interaction.data["custom_id"])
+        next_choice = self.next_choices[choice - 1]
+        story = game_data['sherlock_game'][next_choice]
+        options = story['options']
+        
+        new_view = SherlockGameView(story['story'], options, self.next_choices, interaction)
+        await interaction.response.edit_message(content=f"{story['story']}\n\n" + "\n".join([f"{i+1}. {opt}" for i, opt in enumerate(options)]), view=new_view)
+
+@bot.slash_command(name="sherlock_game")
+async def start_sherlock_game(interaction: discord.Interaction):
+    story = game_data['sherlock_game']['start']
+    options = story['options']
+    next_choices = ['examine_body', 'talk_to_witnesses', 'start', 'start']
+    
+    view = SherlockGameView(story['story'], options, next_choices, interaction)
+    await interaction.response.send_message(f"{story['story']}\n\n" + "\n".join([f"{i+1}. {opt}" for i, opt in enumerate(options)]), view=view, ephemeral=True)
 
 bot.run('')
