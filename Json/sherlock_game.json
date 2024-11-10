@@ -1,0 +1,120 @@
+{
+    "sherlock_game": {
+      "start": {
+        "story": "You are Sherlock Holmes, and you've just been called to a crime scene. A wealthy businessman was found dead in his office. The police are already on-site but are clueless. They need your expertise. What do you want to do?",
+        "options": [
+          "Examine the body",
+          "Talk to the witnesses",
+          "Investigate the crime scene",
+          "Look for clues in the surroundings"
+        ]
+      },
+      "examine_body": {
+        "story": "You approach the body. The victim is a middle-aged man, well-dressed, and lying face down on the floor. There are no obvious signs of injury. However, you notice a small puncture wound on his neck, hidden under his collar. You also see a torn piece of paper near his hand. What do you do next?",
+        "options": [
+          "Read the torn piece of paper",
+          "Examine the puncture wound closely",
+          "Check his pockets for identification",
+          "Take note of the surroundings"
+        ]
+      },
+      "read_note": {
+        "story": "You pick up the torn piece of paper. It reads: 'Meet me at the docks tonight, 9 PM. I'll explain everything. — J'. It seems like a cryptic message. You pocket it for later. What do you want to do now?",
+        "options": [
+          "Examine the puncture wound closely",
+          "Search the rest of the body for anything unusual",
+          "Talk to the witnesses about the note",
+          "Go to the docks to investigate"
+        ]
+      },
+      "examine_wound": {
+        "story": "Upon closer examination, you determine that the puncture wound is consistent with a small, sharp object, possibly a needle or a dart. It’s not fatal on its own, but it could have been used to inject poison or tranquilizer. This suggests foul play. What do you want to do next?",
+        "options": [
+          "Check for any signs of poison in the victim's belongings",
+          "Ask the witnesses if they know anyone who had access to the victim",
+          "Look for any possible security footage",
+          "Go to the docks to investigate further"
+        ]
+      },
+      "talk_to_witnesses": {
+        "story": "You approach the witnesses, a group of the victim's colleagues. They are nervous and seem to be hiding something. One of them, a young woman, keeps glancing at her phone. What do you ask them?",
+        "options": [
+          "Ask if they know anyone who might want to harm the victim",
+          "Ask about the victim’s behavior in the days leading up to his death",
+          "Ask about the victim’s relationship with the other employees",
+          "Question the young woman about her phone"
+        ]
+      },
+      "ask_about_suspects": {
+        "story": "You ask the witnesses about possible suspects. One of the men, who works closely with the victim, mentions that there had been tensions between the victim and a business rival, Jonathan Worthington, who runs a competing company. The witness also hints that the victim had been seeing someone outside of his marriage. What do you want to do next?",
+        "options": [
+          "Question the young woman about her relationship with the victim",
+          "Look into the business rivalry with Jonathan Worthington",
+          "Ask the witnesses if they knew about the victim's personal life",
+          "Check if the victim had any recent threats or blackmail"
+        ]
+      },
+      "investigate_scene": {
+        "story": "You begin searching the office for clues. There are a few things that catch your eye: a broken window, a few scattered papers, and a peculiar red stain on the carpet. You also find a small, gold cufflink under the desk. It looks expensive but out of place. What do you want to investigate further?",
+        "options": [
+          "Check the broken window for signs of forced entry",
+          "Inspect the red stain on the carpet",
+          "Look at the scattered papers for any important documents",
+          "Pick up the cufflink and examine it"
+        ]
+      },
+      "broken_window": {
+        "story": "The window is slightly open, but there are no signs of forced entry. It seems like it was left ajar intentionally. There are no fingerprints on the glass, but the latch is broken. It could have been tampered with recently. What do you do next?",
+        "options": [
+          "Look for any footprints outside the window",
+          "Check for fingerprints on the window frame",
+          "Ask the witnesses if anyone left the building recently",
+          "Take the cufflink and look for the owner"
+        ]
+      },
+      "red_stain": {
+        "story": "You examine the red stain closely. It’s not blood—it's some sort of ink or dye. The stain looks like it was spilled deliberately. There’s also a faint smell of something sweet, almost like perfume. Could this be a clue? What do you want to do now?",
+        "options": [
+          "Check if any witnesses have mentioned perfume",
+          "Look around the office for any spilled drink or ink",
+          "Take a sample of the stain for analysis",
+          "Ask the witnesses about the perfume smell"
+        ]
+      },
+      "cufflink": {
+        "story": "You pick up the cufflink and examine it. It’s engraved with the initials 'J.W.'. It could be the key to finding the killer, but it doesn’t match anyone from the victim’s immediate circle. Perhaps it belongs to someone else. What do you want to do next?",
+        "options": [
+          "Ask the witnesses if they know someone with the initials 'J.W.'",
+          "Check if Jonathan Worthington owns any similar cufflinks",
+          "Look for the matching pair of the cufflink in the victim’s office",
+          "Go to the docks to investigate"
+        ]
+      },
+      "docks_investigation": {
+        "story": "You decide to go to the docks at night. It’s dark, and the fog is thick. You see a shadowy figure near the dock’s edge, holding something in their hand. As you approach, the figure turns around and you recognize the person: it’s Jonathan Worthington, the business rival. He seems surprised to see you. What do you do?",
+        "options": [
+          "Confront Jonathan Worthington about the murder",
+          "Ask Jonathan if he was meeting the victim here",
+          "Search the area around Jonathan for any evidence",
+          "Let Jonathan leave and follow him discreetly"
+        ]
+      },
+      "confront_jonathan": {
+        "story": "You step forward and confront Jonathan. He denies any involvement in the crime and claims that he was simply meeting a colleague at the docks. However, you notice a faint stain on his shirt that matches the red ink you found at the crime scene. He becomes defensive when you mention the cufflink you found. What do you do next?",
+        "options": [
+          "Search Jonathan for any weapons or incriminating evidence",
+          "Accuse Jonathan of being involved in the murder",
+          "Try to get him to confess by offering a deal",
+          "Call the police and wait for backup"
+        ]
+      },
+      "final_choice": {
+        "story": "After gathering all the evidence, you come to a conclusion. Jonathan Worthington was indeed involved in the crime. He murdered the victim after a heated argument over a business deal gone wrong. The red ink was a clue pointing to a rare type of ink used in their business contracts, and the cufflink was left at the scene as a message. The case is closed.",
+        "options": [
+          "Finish the investigation and return to the police",
+          "Ask Jonathan more about his motivations",
+          "Visit the victim's family to inform them of the verdict"
+        ]
+     }
+   }
+}  
