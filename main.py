@@ -11,14 +11,13 @@ import pytz
 import aiohttp
 import os
 import json
+from typing import NoReturn
 
 def load_json(filename):
     path = os.path.join('Json', filename)
     with open(path, 'r', encoding='utf-8') as file:
         return json.load(file)
     
-flags = load_json('flags.json')
-game_data = load_json('sherlock_game.json')    
 flags = load_json('flags.json')
 truths = load_json('truths.json')
 dares = load_json('dares.json')
@@ -154,22 +153,73 @@ async def warn(ctx, user: Option(discord.Member, description='Select a user')):
     else:
         await ctx.respond("You do not have permission to warn members.")
 
+MAX_TEMP_BAN_DURATION = 7  # Maximum duration for temporary bans in days
+DEFAULT_BAN_DURATION = 1  # Default duration for temporary bans (if not specified)
+
 @bot.slash_command(name='ban', description='Ban a user from the server')
-async def ban(ctx, user: Option(discord.Member, description='Select a user')):
+async def ban(ctx, user: Option(discord.Member, description='Select a user'), duration: Option(str, description="Duration of the temporary ban (e.g. 1h, 30m, 2d)", required=False)):
+    # Check permissions
     if ctx.author.guild_permissions.ban_members or ctx.author.id == ctx.guild.owner_id or ctx.author.id == SPECIFIC_USER_ID:
         if user == ctx.author:
             await ctx.respond("You cannot ban yourself.")
         elif user.top_role >= ctx.author.top_role:
             await ctx.respond("You cannot ban this user due to role hierarchy.")
         else:
-            try:
-                await user.ban()
-                await ctx.respond(f"{user.mention} has been banned from the server.")
-            except discord.Forbidden:
-                await ctx.respond("I do not have permission to ban this user. Please check the bot's role permissions.")
-            except discord.HTTPException as e:
-                print(f"Failed to ban user: {e}")
-                await ctx.respond("Failed to ban the user. Please try again later.")
+            # Handle temporary ban logic if duration is provided
+            if duration:
+                # Try to parse the duration
+                duration_match = re.match(r'(\d+)([smhd])', duration.strip().lower())
+                if duration_match:
+                    amount, unit = duration_match.groups()
+                    amount = int(amount)
+
+                    # Convert the duration to seconds
+                    if unit == 's':
+                        ban_duration = timedelta(seconds=amount)
+                    elif unit == 'm':
+                        ban_duration = timedelta(minutes=amount)
+                    elif unit == 'h':
+                        ban_duration = timedelta(hours=amount)
+                    elif unit == 'd':
+                        ban_duration = timedelta(days=amount)
+                    else:
+                        await ctx.respond("Invalid time unit. Use 's' for seconds, 'm' for minutes, 'h' for hours, or 'd' for days.")
+                        return
+
+                    # Ensure the ban duration doesn't exceed the max limit
+                    if ban_duration > timedelta(days=MAX_TEMP_BAN_DURATION):
+                        await ctx.respond(f"Temporary ban duration cannot exceed {MAX_TEMP_BAN_DURATION} days.")
+                        return
+
+                    # Unban time after the specified duration
+                    unban_time = datetime.utcnow() + ban_duration
+                    try:
+                        await user.ban(reason=f"Temporary ban for {duration}")
+                        await ctx.respond(f"{user.mention} has been temporarily banned for {duration}.")
+
+                        # Schedule automatic unban (using a simple task scheduler or delayed task)
+                        # Example: Using asyncio.sleep for a simple demonstration
+                        await asyncio.sleep(ban_duration.total_seconds())
+                        await ctx.guild.unban(user)
+                        print(f"Unbanned {user.mention} after temporary ban duration.")
+                    except discord.Forbidden:
+                        await ctx.respond("I do not have permission to ban this user. Please check the bot's role permissions.")
+                    except discord.HTTPException as e:
+                        print(f"Failed to ban user: {e}")
+                        await ctx.respond("Failed to ban the user. Please try again later.")
+                else:
+                    await ctx.respond("Invalid duration format. Please use a valid format like '1h', '30m', or '2d'.")
+            else:
+                # If no duration is specified, perform a permanent ban
+                try:
+                    await user.ban()
+                    await ctx.respond(f"{user.mention} has been permanently banned from the server.")
+                except discord.Forbidden:
+                    await ctx.respond("I do not have permission to ban this user. Please check the bot's role permissions.")
+                except discord.HTTPException as e:
+                    print(f"Failed to ban user: {e}")
+                    await ctx.respond("Failed to ban the user. Please try again later.")
+
     else:
         await ctx.respond("You do not have permission to ban members.")
 
@@ -834,6 +884,27 @@ class GuessAnswerModal(Modal):
         else:
             await interaction.response.send_message(f"Sorry, the correct answer was {self.answer.capitalize()}. Better luck next time!", ephemeral=True)
 
+class GuessAnswerModal(Modal):
+    def __init__(self, answer):
+        super().__init__(title="Submit Your Guess")
+        self.answer = answer.lower()
+
+        self.answer_input = InputText(label="Enter your answer", placeholder="Type your guess here")
+        self.add_item(self.answer_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        user_answer = self.answer_input.value.strip().lower()
+
+        if user_answer == self.answer:
+            await interaction.response.send_message(f"Correct! {self.answer.capitalize()} is the correct answer! 🎉", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"Sorry, the correct answer was {self.answer.capitalize()}. Better luck next time!", ephemeral=True)
+
+class SampleModal(Modal):
+    async def on_submit(self, interaction: discord.Interaction) -> NoReturn:
+        # You can define custom logic for the modal submission here
+        await interaction.response.send_message("Sample modal submitted!", ephemeral=True)
+
 class GuessGameView(View):
     def __init__(self, answer):
         super().__init__()
@@ -843,7 +914,7 @@ class GuessGameView(View):
     async def submit_button(self, button: Button, interaction: discord.Interaction):
         await interaction.response.send_modal(GuessAnswerModal(answer=self.answer))
 
-@bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag', integration_types = {
+@bot.slash_command(name='flaggame', description='Play a game to guess the country by its flag', integration_types={
     IntegrationType.user_install,
     IntegrationType.guild_install
 })
@@ -886,17 +957,31 @@ async def joke(ctx):
     except Exception as e:
         await ctx.respond(f"An unexpected error occurred: {e}")
 
-@bot.message_command(name="Get Message ID")
-async def get_message_id(ctx, message: discord.Message):
-    await ctx.respond(f"Message ID: `{message.id}`")
-
-suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+# Emojis for suits
+suits = {'Hearts': '♥️', 'Diamonds': '♦️', 'Clubs': '♣️', 'Spades': '♠️'}
 ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 values = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10, 'A': 11}
 
-def create_deck():
-    return [{'suit': suit, 'rank': rank} for suit in suits for rank in ranks]
+# Initialize bot
 
+# Load player's balance from JSON file
+def load_balance():
+    try:
+        with open('economy.json', 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+# Save player's balance to JSON file
+def save_balance(balance_data):
+    with open('economy.json', 'w') as f:
+        json.dump(balance_data, f)
+
+# Create a deck of cards
+def create_deck():
+    return [{'suit': suit, 'rank': rank} for suit in suits.keys() for rank in ranks]
+
+# Calculate hand value
 def calculate_hand_value(hand):
     value = sum(values[card['rank']] for card in hand)
     num_aces = sum(1 for card in hand if card['rank'] == 'A')
@@ -907,43 +992,37 @@ def calculate_hand_value(hand):
     
     return value
 
-def create_deck():
-    suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
-    ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
-    deck = [{'rank': rank, 'suit': suit} for rank in ranks for suit in suits]
-    return deck
-
-def calculate_hand_value(hand):
-    value = 0
-    aces = 0
-    for card in hand:
-        rank = card['rank']
-        if rank in ['J', 'Q', 'K']:
-            value += 10
-        elif rank == 'A':
-            value += 11
-            aces += 1
-        else:
-            value += int(rank)
-    
-    while value > 21 and aces:
-        value -= 10
-        aces -= 1
-    
-    return value
-
+# Convert hand to string for display
 def hand_to_string(hand):
-    return ', '.join(f"{card['rank']} of {card['suit']}" for card in hand)
+    return ', '.join(f"{card['rank']} of {suits[card['suit']]} (value: {values[card['rank']]})" for card in hand)
 
-@bot.slash_command(name='blackjack', description="Start the game", integration_types = {
-    IntegrationType.user_install,
-    IntegrationType.guild_install
-})
+# Command to start the game
+@bot.slash_command(name='blackjack', description="Start the game with the bot")
 async def blackjack(ctx):
+    balance_data = load_balance()
+    player_id = str(ctx.user.id)
+    
+    # Set initial balance if player doesn't have one
+    if player_id not in balance_data:
+        balance_data[player_id] = 1000  # Example: Each player starts with 1000 coins
+
+    # Check player's balance
+    player_balance = balance_data[player_id]
+
+    # Only start the game if the player has enough coins
+    if player_balance < 10:
+        await ctx.send(f"You don't have enough coins to play. Your balance: {player_balance} coins.")
+        return
+
+    # Deduct bet (10 coins)
+    balance_data[player_id] -= 10
+    save_balance(balance_data)
+
+    # Start the game
     try:
         await ctx.defer()
-        await ctx.followup.send("Game is started. Your opponent is the bot.")
-        
+        await ctx.followup.send("The game has started! Your opponent is the bot.")
+
         deck = create_deck()
         random.shuffle(deck)
 
@@ -953,11 +1032,8 @@ async def blackjack(ctx):
         player_value = calculate_hand_value(player_hand)
         dealer_value = calculate_hand_value(dealer_hand)
 
-        def hand_to_string(hand):
-            return ', '.join(f"{card['rank']} of {card['suit']}" for card in hand)
-
         class BlackjackView(View):
-            def __init__(self, ctx, player_hand, dealer_hand, deck, *args, **kwargs):
+            def __init__(self, ctx, player_hand, dealer_hand, deck, player_id, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.ctx = ctx
                 self.player_hand = player_hand
@@ -966,6 +1042,7 @@ async def blackjack(ctx):
                 self.player_value = calculate_hand_value(player_hand)
                 self.dealer_value = calculate_hand_value(dealer_hand)
                 self.finished = False
+                self.player_id = player_id
 
             @discord.ui.button(label='Hit', style=discord.ButtonStyle.primary)
             async def hit_button(self, button: Button, interaction: discord.Interaction):
@@ -977,10 +1054,10 @@ async def blackjack(ctx):
 
                 if self.player_value > 21:
                     self.finished = True
-                    await interaction.response.edit_message(content=f"**Your hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n\nYou've gone over 21! Bot wins.", view=None)
+                    await interaction.response.edit_message(content=f"**Your hand:** {hand_to_string(self.player_hand)} (Total: {self.player_value})\n\nYou went over 21! Bot wins.", view=None)
                     return
 
-                await interaction.response.edit_message(content=f"**Your hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n**Dealer's hand:** {hand_to_string([self.dealer_hand[0]])} and a hidden card.\n\nChoose an action:", view=self)
+                await interaction.response.edit_message(content=f"**Your hand:** {hand_to_string(self.player_hand)} (Total: {self.player_value})\n**Dealer's hand:** {hand_to_string([self.dealer_hand[0]])} and a hidden card.\n\nChoose an action:", view=self)
 
             @discord.ui.button(label='Stand', style=discord.ButtonStyle.secondary)
             async def stand_button(self, button: Button, interaction: discord.Interaction):
@@ -992,56 +1069,29 @@ async def blackjack(ctx):
                     self.dealer_hand.append(self.deck.pop())
                     self.dealer_value = calculate_hand_value(self.dealer_hand)
 
-                result_message = f"**Your hand:** {hand_to_string(self.player_hand)} (Sum: {self.player_value})\n**Dealer's hand:** {hand_to_string(self.dealer_hand)} (Sum: {self.dealer_value})\n\n"
+                result_message = f"**Your hand:** {hand_to_string(self.player_hand)} (Total: {self.player_value})\n**Dealer's hand:** {hand_to_string(self.dealer_hand)} (Total: {self.dealer_value})\n\n"
                 
                 if self.dealer_value > 21:
                     result_message += "Dealer went over 21! You win! 🎉"
+                    balance_data[self.player_id] += 20  # Win: return bet + bonus
                 elif self.player_value > 21:
                     result_message += "You went over 21! Dealer wins!"
                 elif self.player_value > self.dealer_value:
                     result_message += "You win! 🎉"
+                    balance_data[self.player_id] += 20  # Win: return bet + bonus
                 elif self.player_value < self.dealer_value:
                     result_message += "Dealer wins!"
                 else:
                     result_message += "It's a draw!"
 
+                save_balance(balance_data)
                 await interaction.response.edit_message(content=result_message, view=None)
 
-        view = BlackjackView(ctx, player_hand, dealer_hand, deck)
+        view = BlackjackView(ctx, player_hand, dealer_hand, deck, player_id)
 
-        await ctx.send(f"**Your hand:** {hand_to_string(player_hand)} (Sum: {player_value})\n**Dealer's hand:** {hand_to_string([dealer_hand[0]])} and a hidden card.\n\nChoose an action", view=view)
+        await ctx.send(f"**Your hand:** {hand_to_string(player_hand)} (Total: {player_value})\n**Dealer's hand:** {hand_to_string([dealer_hand[0]])} and a hidden card.\n\nChoose an action", view=view)
+
     except Exception as e:
         await ctx.send(f"An error occurred: {str(e)}")
-
-class SherlockGameView(View):
-    def __init__(self, story, options, next_choices, interaction):
-        super().__init__(timeout=60)
-        self.story = story
-        self.options = options
-        self.next_choices = next_choices
-        self.interaction = interaction
-
-        for i, option in enumerate(options):
-            button = Button(label=option, custom_id=str(i+1), style=discord.ButtonStyle.primary)
-            button.callback = self.button_callback
-            self.add_item(button)
-
-    async def button_callback(self, interaction: discord.Interaction):
-        choice = int(interaction.data["custom_id"])
-        next_choice = self.next_choices[choice - 1]
-        story = game_data['sherlock_game'][next_choice]
-        options = story['options']
-        
-        new_view = SherlockGameView(story['story'], options, self.next_choices, interaction)
-        await interaction.response.edit_message(content=f"{story['story']}\n\n" + "\n".join([f"{i+1}. {opt}" for i, opt in enumerate(options)]), view=new_view)
-
-@bot.slash_command(name="sherlock_game")
-async def start_sherlock_game(interaction: discord.Interaction):
-    story = game_data['sherlock_game']['start']
-    options = story['options']
-    next_choices = ['examine_body', 'talk_to_witnesses', 'start', 'start']
-    
-    view = SherlockGameView(story['story'], options, next_choices, interaction)
-    await interaction.response.send_message(f"{story['story']}\n\n" + "\n".join([f"{i+1}. {opt}" for i, opt in enumerate(options)]), view=view, ephemeral=True)
 
 bot.run('')
