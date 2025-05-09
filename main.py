@@ -1107,42 +1107,50 @@ async def blackjack(ctx):
     )
     await ctx.followup.send(embed=embed, view=view)
 
-load_dotenv()
-
 BACKGROUND_FOLDER = "backgrounds"
-FONT_PATH = "fonts/Impact.ttf"
-FONT_SIZE = 300
+FONT_PATH_QUOTE = "fonts/impact.ttf"
+FONT_PATH_AUTHOR = "fonts/impact.ttf"
+FONT_SIZE_QUOTE = 160
+FONT_SIZE_AUTHOR = 100
 TEXT_AREA_RATIO = 0.5
-
-bot = commands.Bot()
 
 @bot.slash_command(name="quote", description="Generate a quote image")
 async def quote(
     ctx,
     text: Option(str, description="Quote text"),
-    bg: Option(int, description="Background number (1–5)", choices=[1, 2, 3, 4, 5]),
-    image_url: Option(str, required=False, description="Optional image URL to overlay") = None,
+    bg: Option(int, required=False, description="Background number (1–5)", choices=[1, 2, 3, 4, 5]) = None,
+    image_url: Option(str, required=False, description="Image URL to use as background") = None,
+    author: Option(str, required=False, description="Author name") = None,
     dm: Option(bool, required=False, description="Send to DM instead of channel") = False
 ):
-    await ctx.defer(ephemeral=True)
+    await ctx.defer(ephemeral=False)
+
+    if not bg and not image_url:
+        await ctx.respond("❗ Вы должны выбрать фон (`bg`) или загрузить фоновое изображение по ссылке (`image_url`).\nПример: `/quote text:'Цитата' bg:1 author:'Автор'`")
+        return
 
     try:
-        bg_path = os.path.join(BACKGROUND_FOLDER, f"{bg}.jpg")
-        if not os.path.exists(bg_path):
-            await ctx.respond("Background is not found.")
-            return
+        if image_url:
+            from io import BytesIO
+            import requests
+            response = requests.get(image_url)
+            img = Image.open(BytesIO(response.content)).convert("RGBA")
+        else:
+            bg_path = os.path.join(BACKGROUND_FOLDER, f"{bg}.jpg")
+            if not os.path.exists(bg_path):
+                await ctx.respond("❌ Фон не найден.")
+                return
+            img = Image.open(bg_path).convert("RGBA")
 
-        img = Image.open(bg_path).convert("RGBA")
         draw = ImageDraw.Draw(img)
-        font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
+        font_quote = ImageFont.truetype(FONT_PATH_QUOTE, FONT_SIZE_QUOTE)
+        font_author = ImageFont.truetype(FONT_PATH_AUTHOR, FONT_SIZE_AUTHOR)
 
-        # Параметры текста
         W, H = img.size
         text_width = int(W * TEXT_AREA_RATIO) - 40
         x = W - text_width - 40
         y = 40
 
-        # Функция переноса текста
         def wrap_text(text, font, max_width):
             words = text.split()
             lines, line = [], ""
@@ -1157,16 +1165,18 @@ async def quote(
                 lines.append(line.strip())
             return lines
 
-        lines = wrap_text(text, font, text_width)
-
         def get_text_height(text, font):
             bbox = font.getbbox(text)
             return bbox[3] - bbox[1]
 
-        # Рисуем строки
+        lines = wrap_text(text, font_quote, text_width)
         for line in lines:
-            draw.text((x, y), line, font=font, fill="white")
-            y += get_text_height(line, font) + 10 
+            draw.text((x, y), line, font=font_quote, fill="white")
+            y += get_text_height(line, font_quote) + 10
+
+        if author:
+            y += FONT_SIZE_QUOTE // 2
+            draw.text((x, y), f"– {author}", font=font_author, fill="white")
 
         output_path = "quote_output.png"
         img.save(output_path)
@@ -1175,14 +1185,14 @@ async def quote(
             file = File(f, filename="quote.png")
             if dm:
                 await ctx.author.send(file=file)
-                await ctx.respond("Quote sended in a DM.")
+                await ctx.respond("📬 Цитата отправлена в личку.")
             else:
                 await ctx.respond(file=file)
 
         os.remove(output_path)
 
     except Exception as e:
-        await ctx.respond("Error with generate image.")
+        await ctx.respond("⚠️ Ошибка при генерации изображения.")
         print(f"[ERROR]: {e}")
 
 if __name__ == "__main__":
