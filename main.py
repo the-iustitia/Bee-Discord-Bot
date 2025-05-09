@@ -1126,7 +1126,7 @@ async def quote(
     await ctx.defer(ephemeral=False)
 
     if not bg and not image_url:
-        await ctx.respond("❗ Вы должны выбрать фон (`bg`) или загрузить фоновое изображение по ссылке (`image_url`).\nПример: `/quote text:'Цитата' bg:1 author:'Автор'`")
+        await ctx.respond("You must select a background (`bg`) or upload a background image from a link (`image_url`).\nExample: `/quote text:'Quote' bg:1 author:'Author'`")
         return
 
     try:
@@ -1138,7 +1138,7 @@ async def quote(
         else:
             bg_path = os.path.join(BACKGROUND_FOLDER, f"{bg}.jpg")
             if not os.path.exists(bg_path):
-                await ctx.respond("❌ Фон не найден.")
+                await ctx.respond("Cannon find background.")
                 return
             img = Image.open(bg_path).convert("RGBA")
 
@@ -1185,14 +1185,14 @@ async def quote(
             file = File(f, filename="quote.png")
             if dm:
                 await ctx.author.send(file=file)
-                await ctx.respond("📬 Цитата отправлена в личку.")
+                await ctx.respond("Quote sended in DM's.")
             else:
                 await ctx.respond(file=file)
 
         os.remove(output_path)
 
     except Exception as e:
-        await ctx.respond("⚠️ Ошибка при генерации изображения.")
+        await ctx.respond("ERROR with generate image.")
         print(f"[ERROR]: {e}")
 
 if __name__ == "__main__":
