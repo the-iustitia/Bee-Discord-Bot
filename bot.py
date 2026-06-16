@@ -1,6 +1,8 @@
 import json
 import discord
 import random
+import os
+from dotenv import load_dotenv
 
 from utils.economy import get, add
 from games import guess as guess_game
@@ -16,13 +18,12 @@ from cogs.slots import start_slots
 from cogs.flags import start_flags
 from cogs.rps import start_rps
 
+load_dotenv()
+
+TOKEN = os.getenv("TOKEN")
+
 intents = discord.Intents.none()
 bot = discord.Bot(intents=intents)
-
-with open("data/config.json", "r", encoding="utf-8") as f:
-    config = json.load(f)
-
-TOKEN = config["token"]
 
 def reward(uid, amount):
     return add(uid, amount)
